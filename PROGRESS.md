@@ -1,6 +1,6 @@
 # PROGRESS — Nexivora Live Status Board
 
-**Last updated:** 2026-09-08 · **Current phase:** Phase 1 — Design System & Brand Identity
+**Last updated:** 2026-09-08 · **Current phase:** Phase 2 — Public Site & SEO Core
 
 > This file is the source of truth for *where we are*. Update it at the end of every work session.
 > Detail lives in `docs/phases/`; this is the dashboard.
@@ -12,7 +12,7 @@
 ```
 MVP CONTRACT  (Phases 0-12)
 Phase  0  ██████████████████████████  ✅ Complete
-Phase  1  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
+Phase  1  ██████████████████████████  ✅ Complete
 Phase  2  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
 Phase  3  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
 Phase  4  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
@@ -39,7 +39,7 @@ Phase 18  ░░░░░░░░░░░░░░░░░░░░░░░�
 Phase 19  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
 ```
 
-**Completed:** 1 / 20 phases · **MVP progress:** 1 / 13 phases
+**Completed:** 2 / 20 phases · **MVP progress:** 2 / 13 phases
 
 ---
 
@@ -48,7 +48,7 @@ Phase 19  ░░░░░░░░░░░░░░░░░░░░░░░�
 | # | Phase | Status | Started | Completed | Summary written | Spec |
 | --- | --- | --- | --- | --- | --- | --- |
 | 0 | Foundation & Project Setup | ✅ Complete | 2026-09-08 | 2026-09-08 | ✅ | [spec](docs/phases/phase-00-foundation.md) |
-| 1 | Design System & Brand | ⬜ Not Started | — | — | ⬜ | [spec](docs/phases/phase-01-design-system.md) |
+| 1 | Design System & Brand | ✅ Complete | 2026-09-08 | 2026-09-08 | ✅ | [spec](docs/phases/phase-01-design-system.md) |
 | 2 | Public Site & SEO Core | ⬜ Not Started | — | — | ⬜ | [spec](docs/phases/phase-02-public-seo.md) |
 | 3 | Data Model, Taxonomy & Seed | ⬜ Not Started | — | — | ⬜ | [spec](docs/phases/phase-03-data-model.md) |
 | 4 | Auth, Roles & RBAC | ⬜ Not Started | — | — | ⬜ | [spec](docs/phases/phase-04-auth-rbac.md) |
@@ -73,6 +73,38 @@ Phase 19  ░░░░░░░░░░░░░░░░░░░░░░░�
 ## Session log
 
 Append one entry per working session. Newest first.
+
+### 2026-09-08 — Session 3
+
+- **Completed Phase 1.** The brand and the full component vocabulary: the Logo as one component
+  (lockup / stacked / mark, plus mono and reversed), the complete favicon and PWA icon set generated
+  from that same geometry, **~35 UI primitives** on Radix, Header / Footer / AppShell /
+  CommandPalette, **60 inline SVG icons**, 8 scene illustrations, the generated avatar and
+  project-cover systems, and `/style-guide` rendering all of it in both themes.
+- **Fixed three React 19 `set-state-in-effect` errors properly rather than suppressing them.** The
+  theme now uses `useSyncExternalStore` (**ADR-016**) — which also means two open tabs stay in step,
+  something the effect version did not do. The combobox and command palette reset their active
+  option in the change handler, where the filter actually changes.
+- **Looked at the result, and found four defects every automated check had passed** (**ADR-017**):
+  a **doubled page title** (`Style guide · Nexivora · Nexivora`) caused by the root layout's title
+  template stacking on `buildMetadata`'s suffix — **this would have hit all ~45 Phase 2 pages**;
+  a `favicon.ico` that silently contained one size instead of three, because Pillow's ICO writer
+  ignores `append_images`; the stacked lockup's wordmark off-centre by six units; and ~24% dead
+  trailing space in the horizontal lockup's viewBox.
+- Built `scripts/screenshot.mjs` (`npm run shot`) to make that pass repeatable — it drives Chrome
+  over the DevTools Protocol, because the `--screenshot` flag cannot emulate `prefers-color-scheme`
+  or capture beyond the viewport. Phases 2 and 16 both need it.
+- Built the command palette now and left it deliberately empty: it is the **deterministic fallback
+  for the Phase 18 assistant**, and building it separately keeps that boundary honest.
+- Verified: typecheck / lint / format / contrast / build all clean; **CSS 12.0 KB gzipped** against
+  a 20 KB budget; the mark rendered and **visually checked at 16px**; `favicon.ico` confirmed to
+  carry 16/32/48; full-page captures in both themes; tier badges checked desaturated for the
+  greyscale-print requirement.
+- **Not done and not claimed:** the axe, screen-reader and keyboard audits are Phase 16. Contrast is
+  measured; conformance is not asserted, and the style guide says so.
+- **Next:** Phase 2 — the full public site and the SEO engine (~45 indexable pages, `buildMetadata`
+  everywhere, `jsonld.ts`, `sitemap.ts`, `robots.ts`, OG images, and the `src/content/` fixtures
+  that become Phase 3's schema contract).
 
 ### 2026-09-08 — Session 2
 

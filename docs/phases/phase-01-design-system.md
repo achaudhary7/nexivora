@@ -2,12 +2,12 @@
 
 | | |
 | --- | --- |
-| **Status** | ⬜ Not Started |
+| **Status** | ✅ Complete |
 | **Depends on** | Phase 0 |
 | **Blocks** | Every phase that renders anything |
 | **Estimate** | 8 focused hours |
-| **Started** | — |
-| **Completed** | — |
+| **Started** | 2026-09-08 |
+| **Completed** | 2026-09-08 |
 
 ## Objective
 
@@ -34,81 +34,81 @@ Reference: `docs/DESIGN-SYSTEM.md`.
 ## Deliverables
 
 ### Brand
-- [ ] `components/Logo.tsx` — one component, `variant="lockup|stacked|mark"`, `size="sm|md|lg"`,
+- [x] `components/Logo.tsx` — one component, `variant="lockup|stacked|mark"`, `size="sm|md|lg"`,
       props `mono` and `reversed`. Mark and wordmark are paths, not live text.
-- [ ] Mark legible at 16px — verified by rendering it at 16px, not by assuming
-- [ ] `public/icon.svg`, `favicon.ico` (16/32/48), `apple-touch-icon.png` (180), and the
+- [x] Mark legible at 16px — verified by rendering it at 16px, not by assuming
+- [x] `public/icon.svg`, `favicon.ico` (16/32/48), `apple-touch-icon.png` (180), and the
       192/512 PWA icons — all generated from the one SVG, all on stable URLs
-- [ ] `public/manifest.webmanifest` with name, short name, theme colour, icons
-- [ ] Brand usage rules written into `docs/DESIGN-SYSTEM.md` (clear space, minimum size, misuse)
+- [x] `public/manifest.webmanifest` with name, short name, theme colour, icons
+- [x] Brand usage rules written into `docs/DESIGN-SYSTEM.md` (clear space, minimum size, misuse)
 
 ### Tokens — verified, not assumed
-- [ ] `scripts/check-contrast.mjs` parses `globals.css` and computes WCAG ratios for every
+- [x] `scripts/check-contrast.mjs` parses `globals.css` and computes WCAG ratios for every
       foreground/background pair in both themes
-- [ ] Wired into `npm run check`; **fails the run on any pair below AA**
-- [ ] All failures corrected in the token file. Record which pairs failed in the summary — that
+- [x] Wired into `npm run check`; **fails the run on any pair below AA**
+- [x] All failures corrected in the token file. Record which pairs failed in the summary — that
       list is genuinely useful information.
-- [ ] `ThemeProvider` + `ThemeToggle` (light / dark / system), no flash of wrong theme on load
+- [x] `ThemeProvider` + `ThemeToggle` (light / dark / system), no flash of wrong theme on load
 
 ### UI primitives — `src/components/ui/`
 Each with every state (default, hover, focus-visible, active, disabled, loading) and a `/style-guide`
 entry.
 
-- [ ] `Button` — variants `primary · secondary · ghost · outline · danger`, sizes `sm · md · lg`,
+- [x] `Button` — variants `primary · secondary · ghost · outline · danger`, sizes `sm · md · lg`,
       `loading`, `iconOnly`, `asChild`
-- [ ] `Input`, `Textarea` (auto-resize), `Select`, `Combobox` (searchable, keyboard-navigable),
+- [x] `Input`, `Textarea` (auto-resize), `Select`, `Combobox` (searchable, keyboard-navigable),
       `Checkbox`, `RadioGroup`, `Switch`, `Slider`, `DatePicker`
-- [ ] `Field` — label, hint, error, required marker, full `aria-describedby` wiring.
+- [x] `Field` — label, hint, error, required marker, full `aria-describedby` wiring.
       **Every form control is used inside a `Field`.**
-- [ ] `Card` + `CardHeader` / `CardBody` / `CardFooter`
-- [ ] `Badge`, `Chip` (removable), `StatusPill` (project lifecycle states), `TierBadge`
+- [x] `Card` + `CardHeader` / `CardBody` / `CardFooter`
+- [x] `Badge`, `Chip` (removable), `StatusPill` (project lifecycle states), `TierBadge`
       (self / evidenced / attested — greyscale-distinguishable)
-- [ ] `Avatar` (with generated SVG identicon fallback), `AvatarGroup` (with overflow count)
-- [ ] `Tabs`, `Accordion`, `Dialog`, `Sheet` (side drawer), `Popover`, `DropdownMenu`, `Tooltip`,
+- [x] `Avatar` (with generated SVG identicon fallback), `AvatarGroup` (with overflow count)
+- [x] `Tabs`, `Accordion`, `Dialog`, `Sheet` (side drawer), `Popover`, `DropdownMenu`, `Tooltip`,
       `ContextMenu`
-- [ ] `Toast` + `useToast`
-- [ ] `Table` — sortable headers, sticky header, and a **card fallback below `md`**
-- [ ] `Progress` (bar + ring), `Skeleton`, `Spinner`
-- [ ] `EmptyState` — illustration, headline, sentence, primary action. **An empty state without an
+- [x] `Toast` + `useToast`
+- [x] `Table` — sortable headers, sticky header, and a **card fallback below `md`**
+- [x] `Progress` (bar + ring), `Skeleton`, `Spinner`
+- [x] `EmptyState` — illustration, headline, sentence, primary action. **An empty state without an
       action is a dead end and does not pass review.**
-- [ ] `ErrorState` with a retry action
-- [ ] `Breadcrumbs` — emits `BreadcrumbList` JSON-LD automatically
-- [ ] `Pagination` — renders **real `<a href>` links**, not buttons (crawlability, per
+- [x] `ErrorState` with a retry action
+- [x] `Breadcrumbs` — emits `BreadcrumbList` JSON-LD automatically
+- [x] `Pagination` — renders **real `<a href>` links**, not buttons (crawlability, per
       `docs/SEO-CHECKLIST.md` §1)
-- [ ] `Stepper`, `Timeline`, `Divider`, `Kbd`, `CopyButton`, `VisuallyHidden`
+- [x] `Stepper`, `Timeline`, `Divider`, `Kbd`, `CopyButton`, `VisuallyHidden`
 
 ### Layout — `src/components/layout/`
-- [ ] `Container`, `Section`, `PageHeader`, `Prose`
-- [ ] `Header` — logo, primary nav, mobile drawer, theme toggle, auth CTAs. Reads
+- [x] `Container`, `Section`, `PageHeader`, `Prose`
+- [x] `Header` — logo, primary nav, mobile drawer, theme toggle, auth CTAs. Reads
       `config/navigation.ts`; **never links to a route whose `planned` flag is true.**
-- [ ] `Footer` — sitemap columns, legal links, social, copyright. One instance, used everywhere.
-- [ ] `AppShell` — collapsible sidebar (icon rail at `md`, drawer on mobile), topbar with search,
+- [x] `Footer` — sitemap columns, legal links, social, copyright. One instance, used everywhere.
+- [x] `AppShell` — collapsible sidebar (icon rail at `md`, drawer on mobile), topbar with search,
       notification bell and user menu
-- [ ] `CommandPalette` shell (⌘K) — registry-driven, empty for now, filled by later phases and
+- [x] `CommandPalette` shell (⌘K) — registry-driven, empty for now, filled by later phases and
       **the deterministic fallback for the Phase 18 assistant**
-- [ ] `SkipLink` as the first focusable element on every page
+- [x] `SkipLink` as the first focusable element on every page
 
 ### Icons — `src/components/icons/`
-- [ ] ~60 inline SVG components on a 24px grid, 1.5px stroke, using `currentColor`
-- [ ] Coverage for: navigation, projects, groups, tasks, files, calendar, feed, social, status,
+- [x] ~60 inline SVG components on a 24px grid, 1.5px stroke, using `currentColor`
+- [x] Coverage for: navigation, projects, groups, tasks, files, calendar, feed, social, status,
       roles, domains, SDG, editorial. No icon library dependency.
-- [ ] `Icon` wrapper handling size and `aria-hidden`
+- [x] `Icon` wrapper handling size and `aria-hidden`
 
 ### Illustrations & generated imagery — `src/components/illustrations/`
-- [ ] 8 scene illustrations, geometric, theme-aware, built from the logo's visual language:
+- [x] 8 scene illustrations, geometric, theme-aware, built from the logo's visual language:
       empty workspace · empty feed · no results · connection/collaboration · archive ·
       error 404 · error 500 · success
-- [ ] `generateAvatar(userId)` — deterministic SVG identicon, a node-graph motif in a hashed hue
-- [ ] `generateProjectCover(project)` — SVG cover from domain colour, title and SDG marks.
+- [x] `generateAvatar(userId)` — deterministic SVG identicon, a node-graph motif in a hashed hue
+- [x] `generateProjectCover(project)` — SVG cover from domain colour, title and SDG marks.
       **This is why every project card will look intentional with zero upload effort.**
-- [ ] `HeroGraphic` — the home page's primary illustration, animated only under
+- [x] `HeroGraphic` — the home page's primary illustration, animated only under
       `prefers-reduced-motion: no-preference`
 
 ### The style guide
-- [ ] `/style-guide` renders every component, every variant, every state, in both themes
-- [ ] Sections: brand · colour · type · spacing · icons · illustrations · primitives · layout ·
+- [x] `/style-guide` renders every component, every variant, every state, in both themes
+- [x] Sections: brand · colour · type · spacing · icons · illustrations · primitives · layout ·
       patterns (empty, loading, error) · accessibility notes
-- [ ] `noindex`
+- [x] `noindex`
 
 ## Acceptance criteria
 
@@ -159,22 +159,163 @@ public/icon.svg, favicon.ico, …      The full icon set, on stable URLs
 
 ## Phase Summary
 
-*Fill this in when the phase is complete.*
+*Completed 2026-09-08.*
 
-**What was built.**
+**What was built.** The brand and the complete component vocabulary — the pieces every one of the
+next eighteen phases assembles rather than invents. The Nexivora logo as one component with every
+variant, the full favicon and PWA icon set generated from that same geometry, ~35 UI primitives on
+Radix, the layout and application shells, 60 inline SVG icons, 8 scene illustrations, the generated
+avatar and project-cover systems, and `/style-guide` rendering all of it in both themes.
 
 **Key decisions made.**
 
-**Contrast failures found and corrected.**
+- **The logo is a nexus that reads as an N.** Three nodes joined by two strokes: the left node low,
+  the right node high (an ascent), the top-right node largest so the mark has a focal point rather
+  than reading as symmetrical decoration. One stroked path plus three circles, which is what lets it
+  survive 16px. The wordmark is **paths, not live text**, so it cannot drift with a font swap.
+- **The geometry lives in exactly three files** — `Logo.tsx`, `public/icon.svg` and
+  `scripts/generate-icons.mjs` — and `npm run gen:icons` keeps the rasters in step. That is written
+  into the brand rules in `docs/DESIGN-SYSTEM.md`, because three copies is exactly the kind of thing
+  that silently diverges.
+- **The raster icons are generated, not drawn.** `scripts/generate-icons.mjs` renders the mark with
+  Pillow at 8x supersampling and downsamples. Node has no rasteriser in stdlib, and adding
+  sharp/resvg for three build-time files is a runtime dependency we do not need.
+- **`useSyncExternalStore` for the theme, not `useState` + effect.** The theme lives in
+  localStorage and in the OS preference — it is external state, and React 19's
+  `react-hooks/set-state-in-effect` rule correctly rejected the mirror-into-state version. The store
+  also subscribes to the `storage` event, so two open tabs stay in step, which the effect version
+  did not do.
+- **The command palette was built now and left deliberately empty.** It is the **deterministic
+  fallback for the Phase 18 AI assistant** (ADR-012). Building it separately, before any AI exists,
+  keeps that boundary honest: with `AI_ENABLED=false` the assistant *is* this palette, and nothing
+  is broken. Commands come from a registry, so feature phases add verbs without touching the file.
+- **`EmptyState.action` is a required prop, not optional.** An empty state without an action is a
+  dead end, and making it optional means half of them will ship without one.
+- **`DatePicker` wraps the native date input.** It is fully keyboard-accessible, OS-localised and
+  works with every screen reader — none of which is true of a custom calendar without weeks of work.
+  Recorded honestly rather than presented as a full picker.
+- **No `cmdk`, no icon library, no second component library.** Radix is the only component
+  dependency. The 60 icons are source code we own.
+
+**Defects found by looking, that no amount of code review would have caught.**
+
+This is the argument for the visual pass being part of the phase rather than an afterthought:
+
+| Defect | How it was found | Fix |
+| --- | --- | --- |
+| **`<title>Style guide · Nexivora · Nexivora</title>`** — the root layout's title *template* was applying on top of `buildMetadata`'s own suffix | Crawling the rendered HTML | `buildMetadata` now returns `title: { absolute }`. **This would have hit all ~45 Phase 2 pages.** |
+| **`favicon.ico` contained only one size (16px), not 16/32/48** | Reading the generated file back with Pillow | Pillow's ICO writer ignores `append_images` and derives entries by downscaling — so it must be saved from the *largest* render with a `sizes` list |
+| **The stacked lockup's wordmark was ~6 units off-centre** | Screenshotting the style guide | Offset corrected from 23 to 28.75 after measuring the wordmark's actual path extent |
+| **The horizontal lockup carried ~24% dead trailing space** in its viewBox, so it floated oddly in flex layouts | Same screenshot | viewBox tightened from 148 to 113 wide, mark-to-wordmark gap from 12 to 10 units |
+
+**A reusable tool came out of it.** `scripts/screenshot.mjs` drives Chrome over the DevTools
+Protocol — the `--screenshot` flag cannot emulate `prefers-color-scheme` (an attempt via
+`--blink-settings=preferredColorScheme=2` rendered a blank page) and cannot capture beyond the
+viewport. `npm run shot /style-guide` now produces full-page captures in both themes. Phase 2 and
+Phase 16 both need this.
 
 **Files and directories created.**
 
+```
+app/
+├── src/components/
+│   ├── Logo.tsx                     lockup · stacked · mark, + mono and reversed
+│   ├── providers.tsx                one client boundary near the root
+│   ├── theme-provider.tsx           useSyncExternalStore + the no-flash init script
+│   ├── icons/index.tsx              60 inline SVG icons, one Icon wrapper
+│   ├── illustrations/
+│   │   ├── index.tsx                8 scenes + HeroGraphic
+│   │   └── generated.tsx            GeneratedAvatar + GeneratedProjectCover
+│   ├── ui/
+│   │   ├── button.tsx               8 variants x 3 sizes x 6 states, asChild, loading
+│   │   ├── field.tsx                label/hint/error + aria-describedby wiring
+│   │   ├── input.tsx                Input, Textarea, Select, DatePicker, Checkbox,
+│   │   │                            RadioGroup, Switch, Slider
+│   │   ├── combobox.tsx             WAI-ARIA combobox + CopyButton
+│   │   ├── display.tsx              Card*, Badge, Chip, StatusPill, TierBadge,
+│   │   │                            Avatar, AvatarGroup, Divider, Kbd
+│   │   ├── feedback.tsx             Skeleton, Spinner, Progress, ProgressRing,
+│   │   │                            EmptyState, ErrorState, Alert
+│   │   ├── navigation.tsx           Breadcrumbs (+JSON-LD), Pagination, Stepper, Timeline
+│   │   ├── overlay.tsx              Dialog, Sheet, Popover, Dropdown, ContextMenu,
+│   │   │                            Tooltip, Tabs, Accordion
+│   │   ├── table.tsx                sortable, sticky header, mobile card fallback
+│   │   └── toast.tsx                ToastProvider + useToast
+│   └── layout/
+│       ├── primitives.tsx           Container, Section, PageHeader, Prose, SkipLink
+│       ├── header.tsx               Header + ThemeToggle
+│       ├── footer.tsx
+│       ├── app-shell.tsx            sidebar → icon rail → drawer, topbar
+│       └── command-palette.tsx      ⌘K, registry-driven
+├── src/lib/seo/jsonld.tsx           JsonLd + breadcrumbList (Phase 2 extends)
+├── src/app/style-guide/             the reference surface (noindex)
+├── scripts/generate-icons.mjs       npm run gen:icons
+├── scripts/screenshot.mjs           npm run shot
+└── public/  icon.svg · favicon.ico · apple-touch-icon.png · icon-192 · icon-512
+           · icon-maskable-512 · manifest.webmanifest
+```
+
 **Deviations from the spec above, and why.**
 
+- **Five raster files, not "the two Apple and Android require".** The spec under-counted what the
+  platforms actually need: `favicon.ico` (legacy browsers), `apple-touch-icon.png` 180 (iOS),
+  `icon-192.png` and `icon-512.png` (PWA install), and `icon-maskable-512.png` (Android adaptive
+  icons crop to a circle, so the mark must sit inside the middle 80% or the corners clip). All five
+  are generated from the one geometry; nothing was hand-drawn or downloaded.
+- **`Toast` is Radix Toast rather than hand-built.** It supplies the swipe gesture, pause-on-hover
+  and the `aria-live` region that announces without stealing focus — all easy to get subtly wrong.
+- **The contrast script was written in Phase 0, not here**, so this phase inherited a passing audit
+  rather than fixing failures. The three failures and their fixes are recorded in Phase 0's summary
+  and ADR-015. The audit was re-run and still passes 94/94.
+- **`Table`'s mobile card fallback shipped here**, not deferred to Phase 7 as the Phase 1 spec
+  suggested. The ledger table in the style guide gave a real dataset to design against, so there was
+  no reason to wait.
+- **No axe, screen-reader or keyboard audit.** Contrast is measured; the rest is Phase 16 and is
+  **not claimed** — the style guide's accessibility section says so explicitly rather than implying
+  conformance.
+
 **Anything the next phase must know.**
+
+1. **Use `buildMetadata()` on every page and never hand-write a title.** It now returns
+   `title: { absolute }` — the root layout's template would otherwise double the site name. This
+   was a real bug that would have affected all ~45 Phase 2 pages.
+2. **The vocabulary exists. Reuse it.** `Header`, `Footer`, `Container`, `Section`, `PageHeader`,
+   `Prose`, `Card`, `Button`, `Badge`, `EmptyState`. If you are about to write a second Button, stop.
+3. **Flip the `planned` flags in `config/navigation.ts`** as Phase 2 pages land. `Header` and
+   `Footer` currently render **no navigation links at all** because every route is still planned —
+   that is deliberate, not a bug, and the links appear with no change to either component.
+4. **`Breadcrumbs` emits its own `BreadcrumbList` JSON-LD.** Do not add a second one.
+5. **`Pagination` renders real anchors.** Keep it that way — a button-based pager is invisible to a
+   crawler, and the explore surface is the SEO engine.
+6. **`lib/seo/jsonld.tsx` has only `breadcrumbList` so far.** Phase 2 adds Organization,
+   WebSite+SearchAction, CreativeWork, ItemList, Person+ProfilePage, CollegeOrUniversity, Article,
+   FAQPage and HowTo. `JsonLd` already escapes `<` so user-authored titles cannot break out.
+7. **`GeneratedProjectCover` and `GeneratedAvatar` exist and are deterministic.** Phase 2's project
+   fixtures should use them — they are the reason seeded data looks alive rather than like a
+   wireframe.
+8. **`npm run shot /explore` is available** for visual checks. Use it; four real defects in this
+   phase were only visible by looking.
+9. **Next 16 async APIs still apply** — `params` and `searchParams` are Promises, and Phase 2's
+   `opengraph-image` and `sitemap` generators receive Promises too (ADR-014).
+10. **`AppShell` is built but unused** until Phase 4 has a session. It takes `nav` and `user` props;
+    do not wire it to a fake user in Phase 2.
 
 **Verified by.**
 
 | Check | Result |
 | --- | --- |
-| | |
+| `npm run typecheck` | Clean, first pass |
+| `npm run lint` | Zero problems (after fixing 3 real `set-state-in-effect` errors, not suppressing them) |
+| `npm run format:check` | All files match Prettier style |
+| `npm run check:contrast` | **94 pairs, 0 failures**, both themes |
+| `npm run build` | Compiled in 5.8s, 3 static routes, no errors, no warnings |
+| **CSS bundle** | **12.0 KB gzipped** (61 KB raw) — budget was 20 KB |
+| `/style-guide` | 200, `noindex`, renders every component in both themes |
+| Titles | `Nexivora — The Global Academic Collaboration Network` (54 chars), `Style guide · Nexivora` (23) — both unique, both under 60 |
+| **Mark at 16px** | Rendered from `favicon.ico` and **visually inspected** — legible; the N and the accent node both read |
+| `favicon.ico` | Verified to contain **16, 32 and 48** after fixing the generator |
+| Icons served | `/icon.svg`, `/favicon.ico`, `/apple-touch-icon.png`, `/icon-192.png`, `/manifest.webmanifest` all 200 |
+| Theme init script | Present inline in `<head>` — no flash of wrong theme |
+| **Dark mode** | Full-page capture via CDP with `prefers-color-scheme: dark` emulated — every section correct |
+| **Tier badges in greyscale** | Desaturated render checked: all three still distinguishable by fill and icon |
+| Raster assets | 5 files, all generated from the one geometry; no other raster anywhere |

@@ -73,7 +73,11 @@ export function buildMetadata(input: BuildMetadataInput): Metadata {
   }
 
   return {
-    title: fullTitle,
+    // `absolute` is load-bearing: the root layout declares a title TEMPLATE
+    // ("%s · Nexivora"), and buildMetadata already appends the site name. A
+    // plain string here gets the template applied on top and renders
+    // "Style guide · Nexivora · Nexivora". Caught by the Phase 1 crawl.
+    title: { absolute: fullTitle },
     description,
     keywords,
     authors: authors?.map((name) => ({ name })),

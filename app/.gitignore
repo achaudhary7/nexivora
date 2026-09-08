@@ -44,3 +44,6 @@ next-env.d.ts
 .uploads/
 *.local
 scratch/
+
+# Visual check output (scripts/screenshot.mjs)
+.screenshots/

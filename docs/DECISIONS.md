@@ -314,3 +314,55 @@ Neither failure is visible to the eye. Both would have shipped.
 **Consequences.** 94 measured pairs now pass in both themes. The audit runs in `npm run check` and
 fails the run on any regression, so this cannot silently come back. The wider lesson is the one the
 design system already states and this phase confirmed: **measure contrast, do not eyeball it.**
+
+---
+
+## ADR-016 — The theme is external state, read with `useSyncExternalStore`
+
+**Status:** Accepted · 2026-09-08 · Phase 1
+
+**Context.** The first implementation mirrored `localStorage` into `useState` inside a mount effect.
+React 19's `react-hooks/set-state-in-effect` rule rejected it, correctly: that pattern causes a
+cascading render on every mount, and it does not react to the theme changing anywhere else.
+
+**Decision.** The theme is read with `useSyncExternalStore`, subscribing to both the `storage` event
+and the `prefers-color-scheme` media query. The inline `themeInitScript` still stamps `data-theme`
+on `<html>` before first paint — that part is not optional, and it is what prevents the flash.
+
+**Consequences.** No cascading render, and **two open tabs now stay in step**, which the effect
+version did not do. The server snapshot is `"system"`, which is safe because the markup it produces
+is theme-neutral: the actual theme comes from the init script and from CSS media queries, never from
+the React tree.
+
+**The wider lesson**, which applies to Phases 7, 10 and 18: when this lint rule fires, it is usually
+pointing at genuinely external state. Suppressing it would have hidden a real defect.
+
+---
+
+## ADR-017 — Verify the design visually, and keep the tool
+
+**Status:** Accepted · 2026-09-08 · Phase 1
+
+**Context.** Phase 1 passed typecheck, lint, the contrast audit and the build on the first attempt.
+It still contained four real defects, none of which any of those checks can see:
+
+1. `<title>Style guide · Nexivora · Nexivora</title>` — the root layout's title *template* applying
+   on top of `buildMetadata`'s own suffix. **This would have hit all ~45 Phase 2 pages.**
+2. `favicon.ico` silently containing one size instead of three — Pillow's ICO writer ignores
+   `append_images` and derives entries by downscaling whatever image it is given.
+3. The stacked lockup's wordmark off-centre by about six units.
+4. The horizontal lockup carrying roughly 24% dead trailing space in its viewBox.
+
+**Decision.** A visual pass is part of a phase's verification, not an optional extra. `npm run shot`
+(`scripts/screenshot.mjs`) drives Chrome over the DevTools Protocol and captures a route full-page
+in light and dark.
+
+CDP rather than Chrome's `--screenshot` flag, for two reasons that are not preferences: only CDP can
+emulate `prefers-color-scheme` (the obvious-looking
+`--blink-settings=preferredColorScheme=2` renders a blank page), and only CDP can capture beyond the
+viewport.
+
+**Consequences.** Dark mode and long pages are now verifiable, and Phases 2 and 16 both need exactly
+this. The cost is a development-only script and a `.screenshots/` directory that is gitignored.
+
+**The rule this sets:** *green checks are necessary, not sufficient.* Look at the thing.

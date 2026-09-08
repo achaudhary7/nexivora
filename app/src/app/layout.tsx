@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 
+import { SkipLink } from "@/components/layout/primitives";
+import { Providers } from "@/components/providers";
+import { themeInitScript } from "@/components/theme-provider";
 import { siteConfig } from "@/config/site";
 import { absoluteUrl } from "@/lib/seo/metadata";
 import "@/styles/globals.css";
@@ -45,12 +48,14 @@ export const metadata: Metadata = {
     url: absoluteUrl("/"),
   },
   twitter: { card: "summary_large_image", creator: siteConfig.social.twitter },
-  // Stable icon URLs — per Fevicon.txt these must never change once indexed,
-  // so /icon.svg is claimed in Phase 0 and only its artwork changes in Phase 1.
-  // apple-touch-icon.png and favicon.ico are Phase 1 deliverables and are not
-  // declared until they exist — a declared icon that 404s is worse than none.
+  // Stable icon URLs — per Fevicon.txt these must never change once indexed.
+  // All generated from one geometry by scripts/generate-icons.mjs.
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "16x16 32x32 48x48" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
   manifest: "/manifest.webmanifest",
 };
@@ -71,12 +76,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${jakarta.variable} ${inter.variable} ${jetbrains.variable} h-full`}
       suppressHydrationWarning
     >
+      <head>
+        {/*
+         * Runs synchronously before first paint and stamps `data-theme` on
+         * <html>. Without it the page paints light, then corrects itself —
+         * the classic dark-mode flash. It must be inline and it must be here.
+         */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="flex min-h-full flex-col">
-        {/* The skip link is the first focusable element on every page. */}
-        <a href="#main" className="skip-link">
-          Skip to content
-        </a>
-        {children}
+        <SkipLink />
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

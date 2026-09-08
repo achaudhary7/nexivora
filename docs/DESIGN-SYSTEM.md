@@ -41,15 +41,41 @@ ascent — and the middle stroke crosses between them.
 carrying a subtle relationship to the mark. Never re-typed by hand in a component — it is a path in
 the `Logo` component so it cannot drift.
 
-**Clear space:** one node-diameter on every side. **Minimum sizes:** mark 16px, lockup 96px wide.
+### Brand usage rules
 
-**Never:** stretch it, rotate it, add a gradient it does not have, place the lockup on a busy
-background, or recolour the mark outside the token set.
+| Rule | Value |
+| --- | --- |
+| **Clear space** | One node-diameter (the largest node) on every side. Nothing sits inside it. |
+| **Minimum size — mark** | 16px. Verified by rendering, not assumed: `favicon.ico` carries 16/32/48 and the mark stays legible at all three. |
+| **Minimum size — lockup** | 96px wide. Below that, use the mark. |
+| **Minimum size — stacked** | 44px wide. |
+| **Backgrounds** | `surface`, `surface-raised`, `surface-inverse`, or a solid brand colour. Never a photograph, never a busy pattern, never a gradient that competes with the mark. |
+| **On dark** | Pass `reversed`. Do not hand-recolour. |
+| **Single colour** | Pass `mono`. Used by the PDF exports and any print piece. |
+
+**Never:**
+
+- Stretch, squash, rotate or skew it — the SVG has a fixed `viewBox` and a computed width so this
+  cannot happen accidentally, but do not defeat it with a CSS `transform`.
+- Add a gradient, shadow, outline or glow it does not have.
+- Recolour the mark outside the token set, or swap which node carries the accent.
+- Re-type the wordmark in a live font. It is a path in `Logo.tsx` precisely so it cannot drift.
+- Place the lockup on a busy background, or lock it up with another logo without clear space.
+- Use the mark as an avatar for a user or a college — those have their own generated marks.
+
+**Geometry, if the artwork is ever revised:** the mark is drawn on a 32x32 grid and the same
+geometry exists in three places — `src/components/Logo.tsx`, `public/icon.svg`, and
+`scripts/generate-icons.mjs`. Change one, change all three, then run `npm run gen:icons`.
 
 ## Colour tokens
 
 Declared as CSS custom properties in `src/styles/globals.css` under `@theme`. **Never write a hex
 value in a component.**
+
+**Filled controls use the explicit `*-fill` tokens, never a ramp step** (ADR-015). White on
+`accent-600` measures 3.68:1 and white on `highlight-600` measures 3.19:1 — both fail AA, and
+neither failure is visible to the eye. A highlight fill additionally requires
+`--color-highlight-fill-border`, because bright amber cannot define its own edge on white.
 
 | Role | Token | Light base | Meaning |
 | --- | --- | --- | --- |
