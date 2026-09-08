@@ -1,0 +1,42 @@
+import type { NextConfig } from "next";
+
+/**
+ * Security headers. Verified against a running instance in Phase 16 with
+ * `curl -I`, and set again at Nginx in Phase 17 (belt and braces — a header
+ * dropped by a proxy misconfiguration is a silent failure).
+ *
+ * The full policy and its reasoning live in docs/SECURITY.md §5.
+ */
+const securityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "X-DNS-Prefetch-Control", value: "on" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(), payment=(), interest-cohort=()",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+];
+
+const nextConfig: NextConfig = {
+  // A self-contained server bundle for the Hostinger VPS deploy (Phase 17).
+  output: "standalone",
+
+  // Fail the production build on a type error rather than shipping it.
+  // Next 16 removed the `eslint` config key along with `next lint`; linting is
+  // now a separate step and runs in `npm run check` and in CI.
+  typescript: { ignoreBuildErrors: false },
+
+  poweredByHeader: false,
+
+  // Static asset caching is deliberately NOT set here. Next already sends
+  // immutable Cache-Control for its own hashed /_next/static output, and
+  // overriding it warns at build time and can break dev behaviour. Production
+  // edge caching is Nginx's job — see docs/DEPLOYMENT.md §3.5.
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
+};
+
+export default nextConfig;

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Nexivora">
+  <title>Nexivora</title>
+  <!--
+    PHASE 0 PLACEHOLDER MARK.
+
+    Phase 1 replaces the artwork in this file — but NOT the URL. Per the Google
+    favicon guidance (../SEO IMPs/Fevicon.txt) the icon must live on a stable URL
+    that never changes once indexed, so /icon.svg is claimed now and kept forever.
+
+    The form: three nodes joined by two strokes, reading simultaneously as a
+    connection graph and as a capital N. The top-right node is largest, so the
+    mark has a focal point rather than reading as symmetrical decoration.
+  -->
+  <rect width="32" height="32" rx="7" fill="#4f46e5"/>
+  <path d="M9 23.5V9.5L23 22.5V8.5" fill="none" stroke="#ffffff" stroke-width="2.75"
+        stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
+  <circle cx="9" cy="23.5" r="2.75" fill="#ffffff"/>
+  <circle cx="23" cy="8.5" r="3.5" fill="#67e8f9"/>
+</svg>
