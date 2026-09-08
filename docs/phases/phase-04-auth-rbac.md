@@ -56,8 +56,10 @@ Reference: `docs/ROLES-PERMISSIONS.md`, `docs/SECURITY.md` §1–2.
 - [ ] `resolveVisibility()` — the most-restrictive-wins computation over resource, group, college,
       embargo and privacy settings
 - [ ] `lib/auth/guards.ts` — `requireAuth()`, `requireRole()`, `requireMembership()`
-- [ ] `middleware.ts` — route gating by role, with a correct post-login redirect back to the
-      intended destination
+- [ ] **`src/proxy.ts`** — route gating by role, with a correct post-login redirect back to the
+      intended destination. **Next 16 renamed Middleware to Proxy** (ADR-014): the file is
+      `proxy.ts`, the export is `proxy`, and the behaviour is unchanged. Do not write
+      `middleware.ts` — it is silently ignored.
 - [ ] **The query-layer convention established and documented:** every scoped query takes `viewer`
       first, a denied read returns `null`, a denied write throws
 - [ ] Cross-college isolation implemented as a predicate applied inside the query helpers
@@ -109,7 +111,7 @@ src/lib/authz/policy.ts        can() — the single source of authorisation trut
 src/lib/auth/config.ts         Auth.js configuration
 src/lib/auth/guards.ts         requireAuth / requireRole / requireMembership
 src/lib/seo/visibility.ts      resolveVisibility() — extended from Phase 2
-src/middleware.ts              Route gating
+src/proxy.ts                   Route gating (Next 16: Middleware is now Proxy)
 src/app/(auth)/*               8 auth routes
 src/app/(app)/onboarding/*     7 role wizards
 tests/unit/policy.test.ts      The permission matrix — the most valuable test in the project

@@ -5,7 +5,7 @@
 | Concern | Technology | Version |
 | --- | --- | --- |
 | Runtime | Node.js | 22 LTS (dev on 24) |
-| Framework | Next.js, App Router | 16.x |
+| Framework | Next.js, App Router | 16.3.4 |
 | Language | TypeScript, `strict` + `noUncheckedIndexedAccess` | 5.x |
 | Styling | Tailwind CSS | 4.x |
 | Primitives | Radix UI | latest |
@@ -96,7 +96,8 @@ SEO plan works at all.
 
 ### 2. Authorisation lives at the data layer
 
-Middleware gates routes as a convenience and for a good redirect. **The query is the boundary.**
+Proxy (`src/proxy.ts` — Next 16's rename of Middleware, ADR-014) gates routes as a convenience and
+for a good redirect. **The query is the boundary.**
 Every query function that touches institution-scoped data takes a `viewer` context
 (`{ userId, role, collegeId, memberships }`) as its first argument, and `lib/authz/policy.ts`
 decides. A page that forgets its guard still cannot read another college's data, because the query

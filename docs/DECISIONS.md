@@ -252,3 +252,65 @@ accumulate as a by-product.
 **Consequences.** This is why Phase 7 (workspace) is the largest phase and why Phase 10 (feed)
 comes after it rather than before. It is also why the first sales conversation is with one faculty
 member and not with a Vice-Chancellor. Full reasoning in `docs/BUSINESS-MODEL.md`.
+
+---
+
+## ADR-014 — Next.js 16 breaking changes, verified against the bundled docs
+
+**Status:** Accepted · 2026-09-08 · Discovered during Phase 0
+
+**Context.** `create-next-app@latest` installed **Next.js 16.3.4** with React 19.2.8, not the 15.x
+these plans were written against. The scaffold also writes an `AGENTS.md` warning that "this is NOT
+the Next.js you know" and pointing at `node_modules/next/dist/docs/`. Those docs were read rather
+than assumed, and they contain four changes that directly affect phases not yet built.
+
+**Decision.** Adopt 16.3.4 and correct the plan now, rather than discovering each change mid-phase.
+
+**The changes that matter to us:**
+
+1. **Middleware is now Proxy.** The file is `src/proxy.ts` and the export is `proxy`. Behaviour is
+   unchanged. **A `middleware.ts` file is silently ignored** — which would have looked like a broken
+   auth guard in Phase 4 rather than a missing file. `docs/phases/phase-04-auth-rbac.md` and
+   `docs/ARCHITECTURE.md` are corrected.
+2. **Async request APIs are now mandatory.** `params`, `searchParams`, `cookies()`, `headers()` and
+   `draftMode()` are Promises; the synchronous compatibility shim from 15 is gone. This affects
+   every dynamic route from Phase 2 onward. `next typegen` generates `PageProps<'/route'>`,
+   `LayoutProps` and `RouteContext` helpers — use them rather than hand-writing prop types.
+3. **`opengraph-image` and `sitemap` generators also receive Promises** for `params` and `id`.
+   Phase 2 builds both, so this is a Phase 2 note, not a footnote.
+4. **`next lint` and the `eslint` key in `next.config.ts` are removed.** Linting is a separate step;
+   `npm run lint` calls `eslint` directly and `npm run check` chains it. Leaving the config key in
+   place is a type error, which is how this was found.
+
+**Consequences.** Turbopack is the default bundler, so builds are fast (41s cold). React 19.2 brings
+View Transitions and `useEffectEvent`, neither of which we need yet. The real cost is that training
+data and most tutorials describe Next 14/15 conventions — so **read
+`node_modules/next/dist/docs/` before writing routing, metadata or proxy code**, in every phase, not
+just this one.
+
+---
+
+## ADR-015 — Filled controls use explicit `*-fill` tokens, not ramp steps
+
+**Status:** Accepted · 2026-09-08 · Discovered by measurement in Phase 0
+
+**Context.** The token system originally paired white text with `accent-600` and `highlight-600` for
+filled buttons. The contrast audit measured those pairs at **3.68:1** and **3.19:1** — both below the
+4.5:1 AA requirement for body text. Then, after correcting them, the amber fill itself measured
+**2.15:1** against a white surface, failing the 3:1 requirement for UI boundaries (WCAG 1.4.11).
+
+Neither failure is visible to the eye. Both would have shipped.
+
+**Decision.** Three things:
+
+1. Introduce `--color-primary-fill`, `--color-accent-fill` and `--color-highlight-fill`. **A
+   component never picks its own ramp step for a filled background** — it uses these, so a fill and
+   its foreground cannot drift apart.
+2. Accent fills use the 700 step with white (5.36:1). Highlight fills use the 500 step with a very
+   dark brown foreground (7.11:1), which is also the better-looking amber.
+3. A highlight-filled control **always** carries `--color-highlight-fill-border`, because a bright
+   amber cannot define its own edge against white.
+
+**Consequences.** 94 measured pairs now pass in both themes. The audit runs in `npm run check` and
+fails the run on any regression, so this cannot silently come back. The wider lesson is the one the
+design system already states and this phase confirmed: **measure contrast, do not eyeball it.**
