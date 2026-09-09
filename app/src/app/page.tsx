@@ -55,17 +55,17 @@ export default function Home() {
       <Header />
 
       <main id="main" className="flex-1">
-        <Section className="pb-8 md:pb-12">
+        <Section className="pt-8 pb-6 md:pt-10 md:pb-10 lg:pt-12">
           <Container>
             <div className="grid items-center gap-12 lg:grid-cols-2">
               <div>
                 <Badge tone="primary" className="mb-5">
                   Phase 1 of 20 · design system landed
                 </Badge>
-                <h1 className="font-display text-4xl font-bold md:text-5xl lg:text-6xl">
+                <h1 className="font-display text-3xl font-bold md:text-4xl lg:text-5xl">
                   {siteConfig.descriptor}
                 </h1>
-                <p className="mt-5 max-w-xl text-lg text-fg-muted">
+                <p className="mt-4 max-w-xl text-base text-fg-muted md:text-lg">
                   Nexivora is the system of record for academic project work — and the network that
                   grows on top of it. {siteConfig.positioning}
                 </p>
@@ -86,9 +86,9 @@ export default function Home() {
           </Container>
         </Section>
 
-        <Section tone="raised" className="py-16 md:py-20">
+        <Section tone="raised">
           <Container>
-            <h2 className="font-display text-2xl font-bold md:text-3xl">
+            <h2 className="font-display text-xl font-bold md:text-2xl">
               Four layers, in the order they deliver value
             </h2>
             <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">

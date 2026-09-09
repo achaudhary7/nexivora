@@ -67,7 +67,11 @@ export function Header() {
             <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
               <Link href="/login">Log in</Link>
             </Button>
-            <Button asChild size="sm" className="hidden sm:inline-flex">
+            {/* The primary CTA stays visible at every width. "Log in" hides
+                below sm and lives in the mobile drawer instead, but hiding the
+                sign-up on a phone would leave the mobile header with nothing
+                but a theme toggle. */}
+            <Button asChild size="sm">
               <Link href="/register">Get started</Link>
             </Button>
 

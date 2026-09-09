@@ -133,6 +133,29 @@ Scale, 1.200 minor third: `xs 12 · sm 14 · base 16 · lg 18 · xl 20 · 2xl 24
 5xl 48 · 6xl 60 · 7xl 72`. Line height 1.6 for body, 1.5 for UI, 1.15 for display. Body copy caps
 at **68ch**. Headings use `text-balance`; lead paragraphs use `text-pretty`.
 
+### Usage ceiling — measured, not assumed
+
+The scale defines what *exists*; this table defines what pages may *use*. Set after measuring the
+rendered output at 390 / 768 / 1280 / 1536 with `npm run audit:layout` (ADR-018).
+
+| Role | Mobile | md | lg+ | Tailwind |
+| --- | --- | --- | --- | --- |
+| **Hero h1** (home, landing pages) | 30 | 36 | **48** | `text-3xl md:text-4xl lg:text-5xl` |
+| **Page h1** (`PageHeader`, every other page) | 30 | 36 | 36 | `text-3xl md:text-4xl` |
+| **Section h2** | 20 | 24 | 24 | `text-xl md:text-2xl` |
+| **Card / block h3** | 18 | 18 | 18 | `text-lg` |
+| **Lead paragraph** | 16 | 18 | 18 | `text-base md:text-lg` |
+| **Body** | 16 | 16 | 16 | `text-base` |
+| **Meta / caption** | 14 | 14 | 14 | `text-sm` |
+
+**`6xl` and `7xl` are not used by any page.** They exist for a future display treatment and a
+deliberate editorial moment; reaching for them by default produces a consumer-marketing register,
+which is the opposite of the stated design intent. An h1 above 48px needs a reason.
+
+**Vertical rhythm.** `Section` is `py-12 md:py-16 lg:py-20` (48 / 64 / 80). The hero overrides to a
+tighter top so the first line of content is not pushed below the fold on a phone. Anything above
+80px of section padding needs a reason too.
+
 ## Spacing, shape, depth, motion
 
 - **Spacing:** 4px base — `0.5 1 1.5 2 3 4 5 6 8 10 12 16 20 24 32`. Section padding

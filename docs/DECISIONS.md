@@ -366,3 +366,52 @@ viewport.
 this. The cost is a development-only script and a `.screenshots/` directory that is gitignored.
 
 **The rule this sets:** *green checks are necessary, not sufficient.* Look at the thing.
+
+---
+
+## ADR-018 — Type scale has a measured usage ceiling, enforced by an audit script
+
+**Status:** Accepted · 2026-09-09 · Phase 1 correction
+
+**Context.** The Phase 1 home page shipped an h1 at **60px** on desktop (`lg:text-6xl`), a 156px gap
+between the header and the first content, and `Section` padding of 112px. Reviewed on a real screen
+it read as oversized and brochure-like — the consumer-marketing register, not the "credible academic
+infrastructure" the design intent calls for.
+
+The report that surfaced it was a screenshot from a browser running at ~133% zoom, which is exactly
+why this needed measuring rather than arguing: a screenshot cannot separate *"the type is too
+large"* from *"the browser is zoomed"*. Both were true, and only one was fixable.
+
+**Decision.**
+
+1. `scripts/audit-layout.mjs` (`npm run audit:layout`) drives Chrome over CDP and reports **computed**
+   font sizes, section padding, hero offset, document height and horizontal overflow at 390 / 768 /
+   1280 / 1536, at a known 100% zoom and dpr 1.
+2. `docs/DESIGN-SYSTEM.md` gains a **usage ceiling** table: what the scale defines versus what pages
+   may actually use. Hero h1 tops out at 48px; every other h1 at 36px; `6xl` and `7xl` are unused
+   and need a stated reason.
+3. `Section` padding drops from 64/96/112 to **48/64/80**.
+
+**Measured effect** on the home page:
+
+| | Before | After |
+| --- | --- | --- |
+| h1 @ 1280 | 60px | **48px** |
+| Hero top gap @ 1280 | 156px | **107px** |
+| Hero top gap @ 390 | 108px | **76px** |
+| Lead @ 390 | 18px | **16px** |
+| Document height @ 1280 | 1644px | **1362px** (17% less scrolling) |
+
+**Consequences.** The audit runs on demand rather than in `npm run check`, because it needs a running
+dev server. Phase 2 should run it on the home page and one content template before calling itself
+done — a type scale that drifts across 45 pages is far more expensive to fix than across two.
+
+**Two process lessons, both worth more than the fix:**
+
+- **Prettier's Tailwind class sorting had already reordered the class strings**, so two of the four
+  edits in the first pass silently matched nothing and no-opped. The audit caught it because the
+  numbers did not move. *Verify an edit landed by measuring the effect, not by the edit reporting
+  success.*
+- The same pass exposed an unrelated defect the numbers could not show: with navigation still empty
+  in Phase 1, the mobile header rendered **only a theme toggle**, because both auth CTAs were
+  `hidden sm:inline-flex`. The primary CTA is now visible at every width.

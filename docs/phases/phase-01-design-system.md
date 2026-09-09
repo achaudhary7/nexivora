@@ -300,6 +300,34 @@ app/
 10. **`AppShell` is built but unused** until Phase 4 has a session. It takes `nav` and `user` props;
     do not wire it to a fake user in Phase 2.
 
+**Post-completion correction (2026-09-09).**
+
+Reviewed on a real screen, the type scale was too large and the vertical rhythm too airy — the
+consumer-marketing register rather than the credible-infrastructure one the design intent calls for.
+The report came with a screenshot from a browser at ~133% zoom, so the first job was separating
+"the type is too large" from "the browser is zoomed". Both were true.
+
+`scripts/audit-layout.mjs` (`npm run audit:layout`) now reports **computed** sizes at 390 / 768 /
+1280 / 1536 at a known 100% zoom, and `docs/DESIGN-SYSTEM.md` carries a **usage ceiling** table so
+the scale cannot drift back (ADR-018).
+
+| | Before | After |
+| --- | --- | --- |
+| Hero h1 @ 1280 | 60px | **48px** |
+| Hero top gap @ 1280 | 156px | **107px** |
+| Hero top gap @ 390 | 108px | **76px** |
+| Lead @ 390 | 18px | **16px** |
+| `Section` padding | 64/96/112 | **48/64/80** |
+| Document height @ 1280 | 1644px | **1362px** |
+
+Two further findings from the same pass:
+
+- **Prettier's Tailwind class sorting had already reordered the class strings**, so two of the four
+  edits in the first attempt matched nothing and silently no-opped. The audit caught it because the
+  numbers did not move. Verify an edit landed by measuring its effect, not by the edit succeeding.
+- With navigation still empty in Phase 1, the **mobile header rendered only a theme toggle** — both
+  auth CTAs were `hidden sm:inline-flex`. The primary CTA is now visible at every width.
+
 **Verified by.**
 
 | Check | Result |

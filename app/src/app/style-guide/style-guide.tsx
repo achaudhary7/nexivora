@@ -104,7 +104,9 @@ function Block({
 }) {
   return (
     <section id={id} className="scroll-mt-24 py-10">
-      <h2 className="border-b border-border pb-2 font-display text-2xl font-bold">{title}</h2>
+      <h2 className="border-b border-border pb-2 font-display text-xl font-bold md:text-2xl">
+        {title}
+      </h2>
       {note ? <p className="mt-2 max-w-2xl text-sm text-fg-muted">{note}</p> : null}
       <div className="mt-6">{children}</div>
     </section>

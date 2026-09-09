@@ -1,6 +1,6 @@
 # PROGRESS — Nexivora Live Status Board
 
-**Last updated:** 2026-09-08 · **Current phase:** Phase 2 — Public Site & SEO Core
+**Last updated:** 2026-09-09 · **Current phase:** Phase 2 — Public Site & SEO Core
 
 > This file is the source of truth for *where we are*. Update it at the end of every work session.
 > Detail lives in `docs/phases/`; this is the dashboard.
@@ -73,6 +73,31 @@ Phase 19  ░░░░░░░░░░░░░░░░░░░░░░░�
 ## Session log
 
 Append one entry per working session. Newest first.
+
+### 2026-09-09 — Session 4
+
+- **Phase 1 correction: the type scale was too large and the rhythm too airy.** Reported from a real
+  screen. The screenshot came from a browser at ~133% zoom, so the first job was separating "the
+  type is too large" from "the browser is zoomed" — **both were true**, and only one was fixable.
+- Built `scripts/audit-layout.mjs` (`npm run audit:layout`) to settle it with numbers: it drives
+  Chrome over CDP and reports **computed** font sizes, section padding, hero offset, document height
+  and horizontal overflow at 390 / 768 / 1280 / 1536, at a known 100% zoom.
+- Measured and fixed (**ADR-018**): hero h1 **60 → 48px**, hero top gap **156 → 107px** (desktop) and
+  **108 → 76px** (mobile), lead **18 → 16px** on mobile, `Section` padding **64/96/112 → 48/64/80**.
+  Document height at 1280 fell from 1644 to 1362 — 17% less scrolling for the same content.
+- `docs/DESIGN-SYSTEM.md` now carries a **usage ceiling** table — what the scale defines versus what
+  pages may use — so this cannot drift back across Phase 2's ~45 pages. `6xl`/`7xl` are unused and
+  need a stated reason.
+- **Two findings from the same pass, both worth more than the fix itself:**
+  - **Prettier's Tailwind class sorting had already reordered the class strings**, so two of the
+    four edits in the first attempt silently matched nothing. The audit caught it because the
+    numbers did not move. *Verify an edit landed by measuring its effect, not by the edit
+    reporting success.*
+  - With navigation still empty in Phase 1, the **mobile header rendered only a theme toggle** —
+    both auth CTAs were `hidden sm:inline-flex`. The primary CTA is now visible at every width.
+- Verified: check and build clean, contrast still 94/94, **no horizontal overflow at any width** on
+  either route.
+- **Next:** Phase 2 — the public site and SEO engine.
 
 ### 2026-09-08 — Session 3
 

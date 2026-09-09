@@ -32,7 +32,7 @@ export function Section({
   return (
     <section
       className={cn(
-        "py-16 md:py-24 lg:py-28",
+        "py-12 md:py-16 lg:py-20",
         tone === "raised" && "bg-surface-raised",
         tone === "sunken" && "bg-surface-sunken",
         className,
@@ -67,7 +67,9 @@ export function PageHeader({
         ) : null}
         {/* One h1 per page — this is it. */}
         <h1 className="font-display text-3xl font-bold md:text-4xl">{title}</h1>
-        {description ? <p className="mt-3 text-lg text-fg-muted">{description}</p> : null}
+        {description ? (
+          <p className="mt-3 text-base text-fg-muted md:text-lg">{description}</p>
+        ) : null}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-3">{actions}</div> : null}
     </header>
