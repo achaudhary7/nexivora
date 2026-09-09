@@ -47,3 +47,6 @@ scratch/
 
 # Visual check output (scripts/screenshot.mjs)
 .screenshots/
+
+# Local PostgreSQL cluster (scripts/db.mjs) — binaries and data, never committed
+.postgres/

@@ -31,6 +31,11 @@ Reference: `docs/DATA-MODEL.md`.
 
 ## Deliverables
 
+### Database
+- [x] **PostgreSQL is already running** — `npm run db:up` (ADR-021, resolved blocker B-1).
+      PostgreSQL 16.8 on port **5433**, with `pg_trgm`, `unaccent` and `citext` installed and
+      verified. Nothing to install. `npm run db:status` confirms it.
+
 ### Schema
 - [ ] Prisma installed, **version pinned exactly** (ADR-002), Postgres provider
 - [ ] `prisma/schema.prisma` covering all ten model groups from `docs/DATA-MODEL.md`
@@ -48,7 +53,9 @@ Reference: `docs/DATA-MODEL.md`.
 - [ ] Migration created and applied
 
 ### Search infrastructure
-- [ ] `pg_trgm` and `unaccent` enabled via migration
+- [x] `pg_trgm` and `unaccent` enabled — done by `npm run db:up`, not by a migration. A migration
+      that runs `CREATE EXTENSION` needs superuser, which the application user deliberately does not
+      have (docs/SECURITY.md §9).
 - [ ] `searchVector tsvector` columns on Project, Idea, Post, User, Resource
 - [ ] Weighted: title A, tags B, sections C, body D
 - [ ] Triggers maintaining the vectors on insert and update
@@ -58,7 +65,10 @@ Reference: `docs/DATA-MODEL.md`.
       problem statement combined with Jaccard overlap of tag and tech-stack sets, weights in config
 - [ ] Unit tests for the scorer against fixture pairs with known expected outcomes
 
-### Taxonomy — `src/config/taxonomy.ts`, seeded from the same file
+### Taxonomy — **already built in Phase 2**; this phase seeds from it
+`src/config/taxonomy.ts` exists and is the single definition consumed by the topic hubs, the explore
+facets, project domain colours and (later) the matcher. **Do not redefine it** — the seed imports it.
+Verify rather than rewrite:
 - [ ] Two-level domain taxonomy: AI/ML, Software, Hardware & IoT, Healthcare, Education,
       Sustainability, Social Impact, Research & Science — each with sub-domains, a slug, a
       description and a contrast-checked colour

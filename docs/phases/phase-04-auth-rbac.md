@@ -22,7 +22,7 @@ Reference: `docs/ROLES-PERMISSIONS.md`, `docs/SECURITY.md` §1–2.
 - Registration, login, logout, email verification, password reset
 - The seven roles and per-membership role resolution
 - `lib/authz/policy.ts` — the permission matrix, implemented once
-- Middleware route gating and data-layer enforcement
+- Proxy (`src/proxy.ts`) route gating and data-layer enforcement
 - Per-role onboarding wizards
 - Account, security and session settings
 
@@ -95,7 +95,7 @@ Reference: `docs/ROLES-PERMISSIONS.md`, `docs/SECURITY.md` §1–2.
 1. Every one of the seven roles can register, verify, onboard and reach its own dashboard.
 2. The permission matrix test passes for every role × action × scope combination.
 3. **A member of college B receives `null` from every scoped query against college A's data**, with
-   the middleware disabled — proving the data layer is a real boundary, not a decoration.
+   the proxy disabled — proving the data layer is a real boundary, not a decoration.
 4. A student attempting `/faculty` is redirected, not shown a broken page.
 5. A denied read returns `null`/404; a denied write throws a handled error with a clear message.
 6. A password reset token cannot be used twice and expires after 30 minutes.
@@ -122,8 +122,8 @@ tests/unit/policy.test.ts      The permission matrix — the most valuable test 
 - **This is the phase to be slow and thorough in.** Every later phase calls `can()`. A permission
   model that is wrong here is wrong in eighteen places later, and permission bugs are the kind that
   ship silently.
-- **Test the data layer with middleware disabled.** Middleware passing is not evidence the query is
-  safe, and the query is what actually protects the data.
+- **Test the data layer with the proxy disabled.** A passing proxy check is not evidence the query
+  is safe, and the query is what actually protects the data.
 - **Roles are per-membership, not global.** Resist the shortcut of a single `user.role` column — the
   alumni transition and the multi-college case both break under it, and unwinding that later touches
   everything.

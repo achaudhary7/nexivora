@@ -47,26 +47,47 @@ npm run db:reset              # migrate + seed the demo college
 npm run dev                   # http://localhost:3000
 ```
 
-### PostgreSQL on Windows — two paths
-
-**Path A — Docker (recommended, cleanest):**
+### PostgreSQL — nothing to install
 
 ```bash
-docker run --name nexivora-db -e POSTGRES_PASSWORD=nexivora \
-  -e POSTGRES_DB=nexivora -p 5432:5432 -d postgres:16
+npm run db:up
 ```
 
-**Path B — the Windows installer** from postgresql.org. Install, note the superuser password,
-then create the database and extensions:
+That downloads the **official PostgreSQL 16 binaries-only build** (once, ~300 MB), initialises a
+cluster under `app/.postgres/`, starts it on **port 5433** as an ordinary user process, creates the
+`nexivora` database and installs `pg_trgm`, `unaccent` and `citext`. No installer, no admin rights,
+no Docker (ADR-021).
+
+It verifies rather than assumes: `db:up` runs `similarity('nexivora','nexivore')` and fails if the
+extension is not genuinely working.
+
+| Command | Does |
+| --- | --- |
+| `npm run db:up` | Download if needed, init if needed, start, ensure database and extensions |
+| `npm run db:status` | Is it running, what version, does `pg_trgm` work, how many tables |
+| `npm run db:down` | Stop it |
+| `npm run db:destroy` | Delete the data directory and start over (keeps the binaries) |
+
+Port **5433** deliberately, so it can never collide with an existing PostgreSQL install, and
+`listen_addresses = 'localhost'` because a development database has no business accepting network
+connections.
+
+**macOS and Linux:** the script is Windows-only and says so. Use your package manager, or:
+
+```bash
+docker run --name nexivora-db -e POSTGRES_PASSWORD=nexivora -e POSTGRES_DB=nexivora -p 5433:5432 -d postgres:16
+```
+
+then, once:
 
 ```sql
-CREATE DATABASE nexivora;
-\c nexivora
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS unaccent;
+CREATE EXTENSION IF NOT EXISTS citext;
 ```
 
-Either way, `DATABASE_URL="postgresql://postgres:nexivora@localhost:5432/nexivora"`.
+**Production is unaffected.** The VPS installs PostgreSQL normally — see §3.3. The bootstrap is a
+development convenience, not a deployment strategy.
 
 Reset to a clean demo state at any time:
 

@@ -154,6 +154,63 @@ Nexivora/
 └── app/                    <- the Next.js application
 ```
 
+## 8a. What earlier phases already built — read before starting any phase
+
+Phases 0–2 are complete. These are the things a future session most often re-invents or contradicts.
+
+### Commands that already exist
+
+| Command | Does |
+| --- | --- |
+| `npm run db:up` | **Real PostgreSQL 16.8, nothing to install** (ADR-021). Port 5433, `pg_trgm`/`unaccent`/`citext` verified working. |
+| `npm run db:status` / `db:down` / `db:destroy` | Inspect, stop, reset the local cluster |
+| `npm run check` | typecheck + lint + format + contrast audit. **The gate.** Works with nothing running. |
+| `npm run check:seo` | Crawls the sitemap and asserts the whole per-page SEO contract. **Needs a running server.** Found 191 real defects on its first run. |
+| `npm run audit:layout [route]` | Computed font sizes, spacing and overflow at 390/768/1280/1536 |
+| `npm run shot [route]` | Full-page screenshots, light and dark, via CDP |
+| `npm run gen:icons` | Regenerates the favicon and PWA set from the one mark geometry |
+
+### Conventions that are already settled — extend, never duplicate
+
+- **`src/content/types.ts` is the contract.** Phase 3's schema must represent every field in it.
+  Its enums (`SectionKind`, `ProjectStatus`, `ProofTier`, `LineageKind`, `Visibility`, `IdeaStatus`)
+  are the ones the schema should declare.
+- **`src/content/index.ts` holds the visibility predicate, once.** Pages call `publicProject()`,
+  `publicPerson()` and friends — never the raw fixture arrays. Phase 3/4 replace the *bodies* of
+  those functions with queries; the pages do not change.
+- **`resolveVisibility()` decides indexability** (ADR-010). Extend it; adding a second visibility
+  check is exactly how a private project leaks into a sitemap.
+- **`buildMetadata()` owns title, canonical, robots and OG.** No page hand-writes them. It drops the
+  brand suffix rather than truncating a title (ADR-020), and the OG image comes from `/api/og`
+  (ADR-019).
+- **`src/config/taxonomy.ts` and `config/navigation.ts` already exist.** One definition, several
+  consumers. Navigation flags are still `planned: true`, so Header and Footer render no links yet.
+- **The design tokens are complete and contrast-verified.** Never a raw hex. Filled buttons use
+  `bg-primary-fill` / `bg-accent-fill` / `bg-highlight-fill` with the matching `text-fg-on-*`, never
+  a ramp step (ADR-015). Type has a **usage ceiling** in `docs/DESIGN-SYSTEM.md` (ADR-018).
+- **~35 UI primitives, 85 icons, 8 illustrations exist.** If you are about to write a second Button,
+  stop. `/style-guide` is the reference.
+
+### Framework facts that fail silently if forgotten
+
+- **Next 16 renamed Middleware to Proxy.** The file is `src/proxy.ts`. A `middleware.ts` is
+  *silently ignored* (ADR-014).
+- **`params` and `searchParams` are Promises.** So are the params in `sitemap` and image generators.
+  Use `next typegen` and the `PageProps<'/route'>` helpers.
+- **`next lint` and the `eslint` key in `next.config.ts` are gone.**
+
+### Process lessons that cost real time
+
+1. **Green checks are necessary, not sufficient — look at the thing** (ADR-017). Phase 1 passed
+   typecheck, lint, contrast and a clean build while shipping a doubled `<title>`, a one-size
+   favicon and two logo geometry defects.
+2. **Verify an edit landed by measuring its effect, not by the edit succeeding.** Prettier's
+   Tailwind class sorting silently no-ops string replacements against source you have not re-read.
+3. **Write the audit before the content, and run it often.** 191 violations found at once is
+   recoverable; 191 found at launch is not.
+
+---
+
 ## 9. The working rhythm (non-negotiable)
 
 1. Open `PROGRESS.md`. Find the first phase not marked ✅ Complete.

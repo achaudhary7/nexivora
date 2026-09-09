@@ -470,3 +470,54 @@ any suffix, and adding `· Nexivora` costs another 11.
 **Consequences.** All 127 titles are unique and within the limit, and the audit enforces it. The
 rule that "under ~60 characters" is a display heuristic rather than a penalty is still true — but
 having a hard limit and honouring it is more useful than having one and quietly exceeding it.
+
+---
+
+## ADR-021 — Zero-install PostgreSQL for development
+
+**Status:** Accepted · 2026-09-09 · Resolves blocker B-1
+
+**Context.** ADR-003 requires real PostgreSQL in development, because full-text search and `pg_trgm`
+duplicate detection are core product features and stubbing them locally means the two most important
+queries in the product are first executed in production.
+
+That requirement blocked Phase 3 for three sessions, because every standard way of getting Postgres
+onto a Windows machine has friction the owner should not have to absorb:
+
+| Option | Why it was rejected |
+| --- | --- |
+| EDB installer via `winget` | Needs UAC elevation, cannot run non-interactively, and installs a system service and a Start Menu entry the project did not ask for |
+| Docker Desktop | Large install, needs virtualisation enabled in BIOS on some machines, and is a second thing to keep running |
+| `embedded-postgres` on npm | A reasonable wrapper around the same binaries, but **every one of its releases is tagged `-beta`**, and a permanently-beta dependency in the dev bootstrap is a risk with no upside |
+| SQLite locally | Rejected in ADR-003 and still rejected. It has neither `tsvector` nor `pg_trgm`. |
+
+**Decision.** `scripts/db.mjs` downloads the **official PostgreSQL 16 binaries-only ZIP** — the same
+build EDB ships, without the installer — into a gitignored `app/.postgres/`, initialises a cluster,
+and runs it as an ordinary user process.
+
+```
+npm run db:up        download if needed, init if needed, start, create db + extensions
+npm run db:status    is it running, and does pg_trgm actually work
+npm run db:down      stop
+npm run db:destroy   delete the data directory, keep the binaries
+```
+
+Three details that matter:
+
+- **Port 5433, not 5432**, so it can never collide with an existing PostgreSQL install.
+- **`listen_addresses = 'localhost'`.** This is a development database on a developer's machine; it
+  has no business accepting connections from the network.
+- **`db:up` verifies rather than assumes.** It runs `similarity('nexivora','nexivore')` and fails if
+  the extension is not genuinely working — a `CREATE EXTENSION` that succeeded is not proof.
+
+**Consequences.** A new developer runs `npm install && npm run db:up && npm run dev` and has real
+PostgreSQL 16.8 with real contrib extensions. No installer, no admin rights, no Docker, no beta
+dependency. Dev is production, which is the entire point of ADR-003.
+
+The costs, stated plainly: a one-time ~300 MB download, and the script is **Windows-only**. On macOS
+and Linux the package manager or the Docker one-liner in `docs/DEPLOYMENT.md` is a better path and
+the script says so and exits rather than pretending. Production is unaffected — Phase 17 installs
+PostgreSQL normally on the VPS.
+
+**Verified:** PostgreSQL 16.8 running on 5433, database created, `pg_trgm`, `unaccent` and `citext`
+installed, and `similarity('nexivora','nexivore') = 0.6363636`.

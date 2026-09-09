@@ -220,7 +220,7 @@ Append one entry per working session. Newest first.
 
 | # | Blocker | Since | Blocks | Owner | Resolution |
 | --- | --- | --- | --- | --- | --- |
-| B-1 | **BLOCKING NOW.** **PostgreSQL is not installed on this machine** — neither Postgres nor Docker is present, so the `nexivora` database does not exist and `pg_trgm` could not be verified. Phase 0 acceptance criterion 5 is unmet. | 2026-09-08 | **Phase 3** onward. Phases 1 and 2 are unaffected and proceed. | achaudhary7 | Install Docker Desktop (`docker run --name nexivora-db -e POSTGRES_PASSWORD=nexivora -e POSTGRES_DB=nexivora -p 5432:5432 -d postgres:16`) **or** the PostgreSQL 16 Windows installer, then create the `pg_trgm` and `unaccent` extensions. Both paths are in `docs/DEPLOYMENT.md` §1. |
+| ~~B-1~~ | ~~PostgreSQL is not installed on this machine~~ | 2026-09-08 | ~~Phase 3~~ | achaudhary7 | **RESOLVED 2026-09-09.** `npm run db:up` downloads the official PostgreSQL 16 binaries-only build and runs it as an ordinary user process — no installer, no admin, no Docker (**ADR-021**). Verified: PostgreSQL 16.8 on port 5433, `pg_trgm` returning `similarity('nexivora','nexivore') = 0.636`. |
 | B-2 | Port 3000 is held by the KaushalSetu dev server, so Nexivora's dev server binds to 3001. | 2026-09-08 | Nothing — cosmetic. | achaudhary7 | Stop the other dev server, or set `NEXT_PUBLIC_SITE_URL=http://localhost:3001` so canonicals match the port actually in use. |
 
 ---
