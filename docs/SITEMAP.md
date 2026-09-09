@@ -149,6 +149,36 @@ Legend — **Access:** Public · Auth · Role-gated. **Index:** ✅ indexable ·
 
 ---
 
+## What Phase 2 actually shipped
+
+**127 indexable pages**, verified by `npm run check:seo` crawling the sitemap.
+
+| Surface | Pages |
+| --- | --- |
+| Marketing (home, 5 audience, how-it-works, features + 3, pricing, about, contact, FAQ, changelog, roadmap) | 17 |
+| Help centre (index + 8 articles) | 9 |
+| Legal (8 documents) | 8 |
+| Explore + project pages | 13 |
+| Topic hubs (index + 8 domains + 16 sub-topics) | 25 |
+| SDG hubs (index + 17 goals) | 18 |
+| Idea Hub (index + 11 ideas) | 12 |
+| Colleges (index + 2 verified) | 3 |
+| Public profiles | 11 |
+| Knowledge hub (index + 6 articles) | 7 |
+| Opportunities (index + 4 live) | 5 |
+
+**Deliberately excluded and asserted absent:** one private project, one project at an unverified
+college, one unapproved proposal, one private profile, the unverified college itself, one unverified
+company's listing, and `/style-guide`.
+
+**Not built:** `/knowledge/collections/[slug]` — with six articles a collection layer would list two
+items. Deferred.
+
+**Sitemap segmentation** is deferred to Phase 12. The limit is 50,000 URLs; we are at 127, and
+splitting now would be structure without purpose.
+
+---
+
 ## Route count by phase
 
 | Phase | New public routes | New authenticated routes |

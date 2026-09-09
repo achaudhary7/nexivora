@@ -138,7 +138,8 @@ in the Phase 17 runbook and is the classic way this breaks in production.
 ### 5. Content before schema
 
 Phase 2 writes the public site against typed fixtures in `src/content/`. Phase 3's Prisma schema
-must satisfy those types. This forces the data model to be shaped by what the product actually
+must satisfy those types — **`src/content/types.ts` now exists and is that contract**; anything it
+declares that the schema cannot represent is a schema bug, not a fixture bug. This forces the data model to be shaped by what the product actually
 renders rather than by what felt tidy in the abstract, and it means the public site is finished and
 demonstrable before the database exists.
 

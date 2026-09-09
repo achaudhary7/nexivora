@@ -415,3 +415,58 @@ done — a type scale that drifts across 45 pages is far more expensive to fix t
 - The same pass exposed an unrelated defect the numbers could not show: with navigation still empty
   in Phase 1, the mobile header rendered **only a theme toggle**, because both auth CTAs were
   `hidden sm:inline-flex`. The primary CTA is now visible at every width.
+
+---
+
+## ADR-019 — OG images come from a route handler, not the file convention
+
+**Status:** Accepted · 2026-09-09 · Phase 2
+
+**Context.** Next's file-based `opengraph-image.tsx` convention is the obvious choice and it failed
+here twice, in two different ways:
+
+1. Setting `image: "/projects/{slug}/opengraph-image"` by hand 404s, because **Next content-hashes
+   generated image filenames** (`opengraph-image-umay0l`). The URL cannot be constructed.
+2. Removing that override and relying on the convention produced **no `og:image` at all on any of
+   127 pages** — because `buildMetadata` sets `openGraph`, and setting `openGraph` in a page's
+   exported metadata suppresses the file-convention image.
+
+Neither failure is visible in a browser. Both were found by `scripts/check-seo.mjs`.
+
+**Decision.** A route handler at `/api/og` generates the card from query parameters, and
+`buildMetadata` constructs that URL for every page. Inputs are length-capped and the accent colour
+is restricted to the contrast-checked domain set, because the endpoint renders whatever it is given.
+
+**Consequences.** Every page gets a tailored card with no per-route file, a URL that can be
+constructed and asserted, and no hash surprises. The cost is one extra route and losing Next's
+automatic image dimensions — so `buildMetadata` states 1200×630 explicitly, which it knows because
+the template is fixed.
+
+**The wider rule:** when a framework convention and an explicit API overlap, check which one
+actually wins in the rendered output. Both of these looked correct in source.
+
+---
+
+## ADR-020 — Titles drop the brand before they drop the content
+
+**Status:** Accepted · 2026-09-09 · Phase 2
+
+**Context.** The SEO contract caps titles at ~60 characters. Real content titles do not respect
+that: *"Scheduling canal water across multiple farms under a shared budget"* is 66 characters before
+any suffix, and adding `· Nexivora` costs another 11.
+
+**Decision.** Three rules, in order:
+
+1. **Constructed suffixes are removed.** `{title} — {domain} project`, `{title} — project idea` and
+   `{title} — {organisation}` all went. They added no information a reader needed and cost 15–30
+   characters each.
+2. **`buildMetadata` drops the site-name suffix when it would exceed the limit.** The content title
+   is the signal and the brand is not; truncating the signal to keep the brand is the wrong trade,
+   and publishers make the same call.
+3. **Content titles longer than 60 characters get shortened at the source.** A handful of fixture
+   titles were rewritten. This is a content decision, not a technical one, and it belongs in the
+   content.
+
+**Consequences.** All 127 titles are unique and within the limit, and the audit enforces it. The
+rule that "under ~60 characters" is a display heuristic rather than a penalty is still true — but
+having a hard limit and honouring it is more useful than having one and quietly exceeding it.

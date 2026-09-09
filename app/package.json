@@ -12,6 +12,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:contrast": "node scripts/check-contrast.mjs",
+    "check:seo": "node scripts/check-seo.mjs",
     "gen:icons": "node scripts/generate-icons.mjs",
     "shot": "node scripts/screenshot.mjs",
     "audit:layout": "node scripts/audit-layout.mjs",

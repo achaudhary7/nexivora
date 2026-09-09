@@ -50,16 +50,22 @@ built in Phase 2 before the product exists.**
 No page ships without all of these. `buildMetadata()` in `src/lib/seo/metadata.ts` enforces most of
 it by construction — pages pass typed input and never hand-write tags.
 
-- [ ] **Unique `<title>`**, under ~60 characters, descriptive and specific.
+- [ ] **Unique `<title>`**, **60 characters maximum**, descriptive and specific.
       Per `Title.txt`: never vague ("Home", "Profile", "Project"), never keyword-stuffed, never
       boilerplate repeated across pages. Pattern: `{Specific Page Title} · Nexivora`, with the home
       page as `Nexivora — The Global Academic Collaboration Network`.
-      Project pages: `{Project Title} — {Domain} project by {College} · Nexivora`.
-- [ ] **Unique meta description**, 140–160 characters, a human summary of *this* page. For a
-      project page it is generated from the problem statement, not from a template.
+      **Content pages use the content title alone** — `buildMetadata` drops the ` · Nexivora`
+      suffix rather than truncating the title, and constructed suffixes like `— {Domain} project`
+      were removed for costing characters without adding information (ADR-020).
+- [ ] **Unique meta description**, **110–160 characters**, a human summary of *this* page. For a
+      project page it is generated from the summary, not from a template. `ensureDescription()`
+      appends true, page-specific context to a source string that is legitimately terse — never
+      filler.
 - [ ] **Self-referencing canonical**, absolute URL, derived from `NEXT_PUBLIC_SITE_URL`.
 - [ ] **One `<h1>`** matching the page subject, with headings in order below it.
-- [ ] **OpenGraph + Twitter card** — title, description, 1200×630 image, type, url.
+- [ ] **OpenGraph + Twitter card** — title, description, 1200×630 image, type, url. The image
+      comes from the `/api/og` route handler via `buildMetadata`, **never** the file-based
+      `opengraph-image` convention, which silently produced no image at all here (ADR-019).
 - [ ] **Robots directives** — explicit `index, follow` for public pages; `noindex, nofollow` for
       everything authenticated, every non-public project, every private profile, and every filter
       permutation we do not want in the index.
@@ -270,6 +276,31 @@ We are building a real product, so this is mostly about not doing anything stupi
   (Phase 16).
 - `rel="ugc"` on user-submitted outbound links; `rel="nofollow"` on unverified company links.
 - No paid links, no link schemes, no reciprocal-link arrangements with other student portals.
+
+---
+
+## 12a. The audit — `npm run check:seo`
+
+The contract above is impossible to hold by hand across ~130 pages, and every way it breaks is
+invisible in a browser. `scripts/check-seo.mjs` crawls every sitemap URL and asserts:
+
+- 200 status (a sitemap must never contain a redirect or an error)
+- unique `<title>`, ≤ 60 chars, with no doubled site name
+- unique meta description, 110–160 chars
+- absolute, self-referencing canonical
+- exactly one `<h1>`
+- no `noindex` page present in the sitemap
+- `og:title`, `og:description`, `og:url` present
+- **`og:image` resolves**, and its origin matches the canonical origin
+- every JSON-LD block parses
+- over 500 characters of text in the raw HTML — the crawlable-without-JS test
+- **the private fixtures are absent from the sitemap**, by slug
+- `/style-guide` and multi-facet explore permutations carry `noindex`
+- a missing route returns a real 404
+
+**On its first run in Phase 2 it found 191 violations** on a site that had already passed typecheck,
+lint and a clean production build. It is not part of `npm run check` because it needs a running
+server — run it after any page change.
 
 ---
 

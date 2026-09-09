@@ -1,6 +1,6 @@
 # PROGRESS — Nexivora Live Status Board
 
-**Last updated:** 2026-09-09 · **Current phase:** Phase 2 — Public Site & SEO Core
+**Last updated:** 2026-09-09 · **Current phase:** Phase 3 — Data Model, Taxonomy & Seed
 
 > This file is the source of truth for *where we are*. Update it at the end of every work session.
 > Detail lives in `docs/phases/`; this is the dashboard.
@@ -13,7 +13,7 @@
 MVP CONTRACT  (Phases 0-12)
 Phase  0  ██████████████████████████  ✅ Complete
 Phase  1  ██████████████████████████  ✅ Complete
-Phase  2  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
+Phase  2  ██████████████████████████  ✅ Complete
 Phase  3  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
 Phase  4  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
 Phase  5  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
@@ -39,7 +39,7 @@ Phase 18  ░░░░░░░░░░░░░░░░░░░░░░░�
 Phase 19  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
 ```
 
-**Completed:** 2 / 20 phases · **MVP progress:** 2 / 13 phases
+**Completed:** 3 / 20 phases · **MVP progress:** 3 / 13 phases
 
 ---
 
@@ -49,7 +49,7 @@ Phase 19  ░░░░░░░░░░░░░░░░░░░░░░░�
 | --- | --- | --- | --- | --- | --- | --- |
 | 0 | Foundation & Project Setup | ✅ Complete | 2026-09-08 | 2026-09-08 | ✅ | [spec](docs/phases/phase-00-foundation.md) |
 | 1 | Design System & Brand | ✅ Complete | 2026-09-08 | 2026-09-08 | ✅ | [spec](docs/phases/phase-01-design-system.md) |
-| 2 | Public Site & SEO Core | ⬜ Not Started | — | — | ⬜ | [spec](docs/phases/phase-02-public-seo.md) |
+| 2 | Public Site & SEO Core | ✅ Complete | 2026-09-09 | 2026-09-09 | ✅ | [spec](docs/phases/phase-02-public-seo.md) |
 | 3 | Data Model, Taxonomy & Seed | ⬜ Not Started | — | — | ⬜ | [spec](docs/phases/phase-03-data-model.md) |
 | 4 | Auth, Roles & RBAC | ⬜ Not Started | — | — | ⬜ | [spec](docs/phases/phase-04-auth-rbac.md) |
 | 5 | Institution Backbone | ⬜ Not Started | — | — | ⬜ | [spec](docs/phases/phase-05-institution.md) |
@@ -73,6 +73,37 @@ Phase 19  ░░░░░░░░░░░░░░░░░░░░░░░�
 ## Session log
 
 Append one entry per working session. Newest first.
+
+### 2026-09-09 — Session 5
+
+- **Completed Phase 2.** The entire public surface — **127 indexable pages** — and the SEO engine
+  every later phase reuses, built before the database exists. Marketing, explore, project pages,
+  topic and SDG hubs, the Idea Hub, colleges, profiles, knowledge hub, opportunities, help, the full
+  legal set, error pages, sitemap, robots and generated OG cards.
+- **`src/content/` is written, not generated**, and is now **the contract Phase 3's schema must
+  satisfy**. Fourteen full project records with all nine sections, plus deliberate hard cases: a
+  three-level lineage chain, a near-duplicate to make Phase 8's similarity check fire, an embargoed
+  project, a private project, a private profile, a project at an unverified college, and an
+  unverified company's listing.
+- **Wrote the SEO audit early and it found 191 violations in my own output** — on a site that had
+  already passed typecheck, lint and a clean production build. Every one was invisible in a browser:
+  ~40 descriptions outside 110–160, ~24 titles over 60, and **`og:image` missing on all 127 pages**.
+- **The og:image failure took two wrong turns and both are worth remembering.** A hand-written
+  `/path/opengraph-image` URL 404s because Next content-hashes generated image filenames. Removing
+  the override then produced *no* image at all, because setting `openGraph` in a page's metadata
+  suppresses the file-based convention. The fix is a route handler at a stable URL (`/api/og`),
+  which also gives every page a tailored card with no per-route file.
+- Fixed `dangerouslySetInnerHTML` that had crept into the pricing page for bold text — not because
+  it was exploitable on our own content, but because it is a pattern that gets copied into somewhere
+  it would be. The markdown-lite renderer that Phase 8 will point at untrusted project sections
+  produces React elements only.
+- Verified: check and build clean, **133 static pages**, **check:seo 0 violations across 127 pages**,
+  247 valid JSON-LD blocks, every page renders without JS, no horizontal overflow at any width, and
+  the private/unverified fixtures are provably absent from the sitemap.
+- **Not done and not claimed:** no Lighthouse score is asserted (Phase 16 owns it), and
+  `/knowledge/collections/[slug]` was not built — with six articles it would list two items.
+- **Next:** Phase 3 — the Prisma schema against the `src/content/` contract, Postgres FTS and
+  `pg_trgm`, and the seeded demo college. **PostgreSQL still needs installing (blocker B-1).**
 
 ### 2026-09-09 — Session 4
 
@@ -189,7 +220,7 @@ Append one entry per working session. Newest first.
 
 | # | Blocker | Since | Blocks | Owner | Resolution |
 | --- | --- | --- | --- | --- | --- |
-| B-1 | **PostgreSQL is not installed on this machine** — neither Postgres nor Docker is present, so the `nexivora` database does not exist and `pg_trgm` could not be verified. Phase 0 acceptance criterion 5 is unmet. | 2026-09-08 | **Phase 3** onward. Phases 1 and 2 are unaffected and proceed. | achaudhary7 | Install Docker Desktop (`docker run --name nexivora-db -e POSTGRES_PASSWORD=nexivora -e POSTGRES_DB=nexivora -p 5432:5432 -d postgres:16`) **or** the PostgreSQL 16 Windows installer, then create the `pg_trgm` and `unaccent` extensions. Both paths are in `docs/DEPLOYMENT.md` §1. |
+| B-1 | **BLOCKING NOW.** **PostgreSQL is not installed on this machine** — neither Postgres nor Docker is present, so the `nexivora` database does not exist and `pg_trgm` could not be verified. Phase 0 acceptance criterion 5 is unmet. | 2026-09-08 | **Phase 3** onward. Phases 1 and 2 are unaffected and proceed. | achaudhary7 | Install Docker Desktop (`docker run --name nexivora-db -e POSTGRES_PASSWORD=nexivora -e POSTGRES_DB=nexivora -p 5432:5432 -d postgres:16`) **or** the PostgreSQL 16 Windows installer, then create the `pg_trgm` and `unaccent` extensions. Both paths are in `docs/DEPLOYMENT.md` §1. |
 | B-2 | Port 3000 is held by the KaushalSetu dev server, so Nexivora's dev server binds to 3001. | 2026-09-08 | Nothing — cosmetic. | achaudhary7 | Stop the other dev server, or set `NEXT_PUBLIC_SITE_URL=http://localhost:3001` so canonicals match the port actually in use. |
 
 ---

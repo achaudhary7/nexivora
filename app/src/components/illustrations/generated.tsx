@@ -152,6 +152,8 @@ export function GeneratedProjectCover({
       role="img"
       aria-label={`Cover image for ${title}`}
       className={cn("h-auto w-full", className)}
+      /* `slice` fills the container and crops, so a card (16:9) and a detail
+         banner (3:1) can share one generated cover without letterboxing. */
       preserveAspectRatio="xMidYMid slice"
     >
       <title>{`Cover image for ${title}`}</title>

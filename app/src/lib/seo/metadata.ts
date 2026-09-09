@@ -5,27 +5,37 @@ import { siteConfig } from "@/config/site";
 /**
  * The metadata builder. Every page in the product goes through this.
  *
- * No page hand-writes a <title>, a canonical or a robots tag — the per-page SEO
- * contract in docs/SEO-CHECKLIST.md §2 is enforced here by construction.
+ * No page hand-writes a <title>, a canonical, a robots tag or an OG image — the
+ * per-page SEO contract in docs/SEO-CHECKLIST.md §2 is enforced here by
+ * construction, and `scripts/check-seo.mjs` crawls the sitemap to prove it.
  *
  * Length limits come from the Google Search Central docs in ../SEO IMPs:
  *   - Titles: specific, under ~60 characters, never boilerplate (Title.txt)
- *   - Descriptions: a human summary of THIS page, 140-160 characters
+ *   - Descriptions: a human summary of THIS page, 110-160 characters
  */
 
 export const TITLE_MAX = 60;
 export const DESCRIPTION_MIN = 110;
 export const DESCRIPTION_MAX = 160;
 
+export type OgAccent =
+  | "default"
+  | "ai"
+  | "software"
+  | "hardware"
+  | "healthcare"
+  | "education"
+  | "sustainability"
+  | "social"
+  | "research";
+
 export type BuildMetadataInput = {
-  /** The page-specific part. The site name is appended automatically. */
+  /** The page-specific part. The site name is appended when it fits. */
   title: string;
   /** Written for this page. Never templated — a templated description is a duplicate. */
   description: string;
   /** Path only, e.g. "/explore". The canonical is built from NEXT_PUBLIC_SITE_URL. */
   path: string;
-  /** Omit for the generated OG image at the same path. */
-  image?: string;
   /** OpenGraph type. "article" for knowledge posts, "profile" for people. */
   type?: "website" | "article" | "profile";
   /**
@@ -39,6 +49,14 @@ export type BuildMetadataInput = {
   publishedTime?: string;
   modifiedTime?: string;
   authors?: string[];
+  /** Overrides for the generated OG card. Defaults derive from title/description. */
+  og?: {
+    eyebrow?: string;
+    /** Defaults to the page description, trimmed. */
+    description?: string;
+    chips?: string[];
+    accent?: OgAccent;
+  };
 };
 
 /** Absolute URL from a path. Every canonical and OG URL goes through this. */
@@ -48,12 +66,33 @@ export function absoluteUrl(path: string): string {
   return `${base}${suffix}`;
 }
 
+/**
+ * The OG card URL.
+ *
+ * A route handler at a stable path, not the file-based `opengraph-image`
+ * convention — see the comment in app/api/og/route.tsx for why the convention
+ * silently produced no image on every page here.
+ */
+export function ogUrl(input: {
+  title: string;
+  eyebrow?: string;
+  description?: string;
+  chips?: string[];
+  accent?: OgAccent;
+}): string {
+  const params = new URLSearchParams({ title: input.title });
+  if (input.eyebrow) params.set("eyebrow", input.eyebrow);
+  if (input.description) params.set("description", input.description);
+  if (input.chips?.length) params.set("chips", input.chips.join(","));
+  if (input.accent && input.accent !== "default") params.set("accent", input.accent);
+  return absoluteUrl(`/api/og?${params.toString()}`);
+}
+
 export function buildMetadata(input: BuildMetadataInput): Metadata {
   const {
     title,
     description,
     path,
-    image,
     type = "website",
     index = true,
     absoluteTitle = false,
@@ -61,12 +100,26 @@ export function buildMetadata(input: BuildMetadataInput): Metadata {
     publishedTime,
     modifiedTime,
     authors,
+    og,
   } = input;
 
-  const fullTitle = absoluteTitle ? title : `${title} · ${siteConfig.name}`;
+  /*
+   * The site-name suffix is dropped when it would push the title past the
+   * limit. Content titles — a project name, an article headline — are the
+   * signal; the brand is not, and truncating the signal to keep the brand is
+   * the wrong trade. Publishers do the same.
+   */
+  const suffixed = `${title} · ${siteConfig.name}`;
+  const fullTitle = absoluteTitle || suffixed.length > TITLE_MAX ? title : suffixed;
+
   const canonical = absoluteUrl(path);
-  const ogImage =
-    image ?? absoluteUrl(path === "/" ? "/opengraph-image" : `${path}/opengraph-image`);
+  const image = ogUrl({
+    title,
+    eyebrow: og?.eyebrow,
+    description: og?.description ?? description,
+    chips: og?.chips,
+    accent: og?.accent,
+  });
 
   if (process.env.NODE_ENV !== "production") {
     warnOnContractBreach(fullTitle, description, path);
@@ -103,7 +156,7 @@ export function buildMetadata(input: BuildMetadataInput): Metadata {
       siteName: siteConfig.name,
       locale: siteConfig.locale,
       type,
-      images: [{ url: ogImage, width: 1200, height: 630, alt: fullTitle }],
+      images: [{ url: image, width: 1200, height: 630, alt: fullTitle }],
       ...(publishedTime ? { publishedTime } : {}),
       ...(modifiedTime ? { modifiedTime } : {}),
     },
@@ -111,7 +164,7 @@ export function buildMetadata(input: BuildMetadataInput): Metadata {
       card: "summary_large_image",
       title: fullTitle,
       description,
-      images: [ogImage],
+      images: [image],
       creator: siteConfig.social.twitter,
     },
   };
@@ -120,8 +173,8 @@ export function buildMetadata(input: BuildMetadataInput): Metadata {
 /**
  * Development-time warnings for our own SEO contract.
  *
- * These are warnings rather than errors so a page in progress is not blocked,
- * but scripts/check-seo.mjs turns the same rules into a hard failure across the
+ * These are warnings rather than errors so a page in progress is not blocked;
+ * `scripts/check-seo.mjs` turns the same rules into a hard failure across the
  * whole route table before a phase can be called complete.
  */
 function warnOnContractBreach(title: string, description: string, path: string) {
@@ -138,4 +191,18 @@ function warnOnContractBreach(title: string, description: string, path: string) 
       `[seo] Description too short (${description.length} < ${DESCRIPTION_MIN}) on ${path}`,
     );
   }
+}
+
+/**
+ * Pads a short description to the contract minimum with a relevant, honest
+ * suffix. Used by dynamic pages whose source text is legitimately terse.
+ *
+ * It appends context that is true of the page rather than filler — a
+ * description that says nothing is worse than one that is slightly short.
+ */
+export function ensureDescription(text: string, suffix: string): string {
+  const base = text.trim();
+  if (base.length >= DESCRIPTION_MIN) return base.slice(0, DESCRIPTION_MAX);
+  const joined = `${base} ${suffix.trim()}`.trim();
+  return joined.slice(0, DESCRIPTION_MAX);
 }

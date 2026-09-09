@@ -224,7 +224,7 @@ export function StyleGuide() {
   const [page, setPage] = useState(3);
 
   return (
-    <main id="main" className="flex-1">
+    <div>
       <Container className="py-12">
         <PageHeader
           eyebrow="Design system"
@@ -1012,6 +1012,6 @@ export function StyleGuide() {
           </ul>
         </Block>
       </Container>
-    </main>
+    </div>
   );
 }
