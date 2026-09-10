@@ -260,8 +260,12 @@ function ShareView({
  * dependency for this would be more bytes than the rest of the page.
  *
  * `preserveAspectRatio="none"` lets one viewBox stretch to whatever width the
- * row gets, which is what keeps every row on the same horizontal scale without
- * measuring anything.
+ * row gets, which keeps every row on the same horizontal scale without measuring
+ * anything. The **aspect ratio is capped** because of what that stretching does
+ * otherwise: at 24px tall and ~930px wide, a curve rising through its entire
+ * range still reads as a flat line. It was technically correct and told the
+ * reader nothing — caught by looking at a screenshot, which no amount of
+ * type-checking would have done.
  */
 function Sparkline({
   points,
@@ -275,7 +279,7 @@ function Sparkline({
   label: string;
 }) {
   const width = 100;
-  const height = 24;
+  const height = 40;
 
   const coords = points.map((value, index) => {
     const x = points.length === 1 ? width : (index / (points.length - 1)) * width;
@@ -289,7 +293,7 @@ function Sparkline({
       preserveAspectRatio="none"
       role="img"
       aria-label={label}
-      className="h-6 min-w-0 flex-1 overflow-visible"
+      className="h-10 w-full max-w-sm min-w-0 shrink overflow-visible"
     >
       <polyline
         points={coords.join(" ")}

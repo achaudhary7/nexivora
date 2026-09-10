@@ -119,6 +119,14 @@ waiting on.
   - **My own hint text failed my own check.** The avatar assertion matched "not accepted" anywhere
     on the page and caught the form's static "SVG is not accepted…" copy, reporting a refusal on an
     upload that had succeeded. Scoped to `[role=alert]`.
+- **Looking at screenshots found three defects every check had passed** (process lesson 1, again).
+  The board stretched to **2335px** because a grid sizes to its tallest child and "Done" held 18
+  cards — four empty columns two screens tall, with the ledger link buried under them. Columns now
+  scroll internally. The fifth column also opened half off-screen at 1440px, so `minmax` came down
+  from 15rem to 13rem: a board whose whole point is seeing every column at once loses it to a
+  horizontal scroll nobody performs. And the ledger's sparklines, at 24px tall stretched to ~930px,
+  read as **flat lines while rising through their entire range** — correct, and communicating
+  nothing. This is the dataviz procedure's last step, and it earned its place.
 - **A stale `next start` cost the most time of anything today** — and it is the trap Phase 5 wrote
   down. `pkill` does not kill it on Windows, so the rebuild ran, the new server failed to bind, and
   the old one kept answering. Four failures looked like a broken board; the DOM had no `data-task`

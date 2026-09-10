@@ -121,7 +121,14 @@ export function TaskBoard({
 
   return (
     <>
-      <div className="grid gap-4 overflow-x-auto pb-2 md:auto-cols-[minmax(15rem,1fr)] md:grid-flow-col">
+      {/*
+        13rem, not 15: five columns plus their gaps have to fit the content area
+        beside the sidebar at a 1440px viewport, or the board opens with "Done"
+        half off-screen and the whole point of a board — seeing every column at
+        once — is lost to a horizontal scroll nobody performs. It still scrolls
+        below that width; the container does, never the page body.
+      */}
+      <div className="grid gap-3 overflow-x-auto pb-2 md:auto-cols-[minmax(13rem,1fr)] md:grid-flow-col">
         {columns.map((column) => (
           <section
             key={column.status}
@@ -137,11 +144,16 @@ export function TaskBoard({
               if (task) move(task, column.status);
             }}
             className={cn(
-              "grid content-start gap-2 rounded-xl border border-border bg-surface-sunken/40 p-3 transition-colors",
+              // A column scrolls internally rather than stretching the board.
+              // With 18 done tasks and one in every other column, a grid that
+              // sizes to its tallest child made the page 2300px long and left
+              // four empty columns two screens tall — which looked broken and
+              // buried the ledger link below all of it.
+              "flex max-h-[calc(100vh-19rem)] min-h-40 flex-col gap-2 rounded-xl border border-border bg-surface-sunken/40 p-3 transition-colors",
               dragging && "border-dashed border-border-strong",
             )}
           >
-            <h3 className="flex items-center justify-between px-1 text-sm font-medium">
+            <h3 className="flex shrink-0 items-center justify-between px-1 text-sm font-medium">
               {TASK_COLUMN_LABEL[column.status]}
               <span className="text-xs font-normal text-fg-subtle">{column.tasks.length}</span>
             </h3>
@@ -149,7 +161,7 @@ export function TaskBoard({
             {column.tasks.length === 0 ? (
               <p className="px-1 py-3 text-xs text-fg-subtle">Nothing here.</p>
             ) : (
-              <ul className="grid gap-2">
+              <ul className="-mr-1 grid min-h-0 gap-2 overflow-y-auto pr-1">
                 {column.tasks.map((task) => (
                   <li key={task.id} data-task={task.id}>
                     <TaskCard
