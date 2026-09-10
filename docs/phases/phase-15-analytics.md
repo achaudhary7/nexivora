@@ -9,6 +9,18 @@
 | **Started** | — |
 | **Completed** | — |
 
+## What Phase 5 already provides
+
+*Added 2026-09-09, when Phase 5 completed.*
+
+- **`Term` is a real model and exactly one is active at a time**, enforced in a transaction. Every
+  roll-up you write can depend on that.
+- **The audit log is append-only and already populated** by every administrative mutation, with the
+  actor, the diff and a reason where one was required.
+- **CSV generation belongs here.** Phase 5 deliberately left the audit-log export out rather than
+  writing a second CSV writer — `errorReportCsv()` in `lib/import/people.ts` shows the escaping
+  the export will need.
+
 ## Objective
 
 Turn the data the platform has been accumulating into the thing an institution will actually pay

@@ -1,101 +1,155 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 
 import { ExternalIcon, LockIcon } from "@/components/icons";
 import { Container } from "@/components/layout/primitives";
 import { ProjectCard } from "@/components/project/project-card";
 import { Avatar, Badge, Card, Divider, TierBadge } from "@/components/ui/display";
 import { Breadcrumbs } from "@/components/ui/navigation";
-import { collegeBySlug } from "@/content/colleges";
-import { people } from "@/content/people";
-import { ideasByPerson, projectsByPerson, publicPerson } from "@/content";
+import { ANONYMOUS } from "@/lib/authz/viewer";
+import { currentViewer } from "@/lib/auth/session";
+import { toContentProjectCard } from "@/lib/db/queries/adapters";
+import { getProfile, publicProfileUsernames } from "@/lib/db/queries/profile";
+import { listProjects } from "@/lib/db/queries/projects";
+import { mergeSkills } from "@/lib/skills/infer";
 import { JsonLd, breadcrumbList, personProfile } from "@/lib/seo/jsonld";
 import { buildMetadata, ensureDescription } from "@/lib/seo/metadata";
 
 /**
- * The public academic profile.
+ * The public academic profile. Database-backed as of Phase 6.
  *
- * Two privacy properties matter more than anything on this page, and both are
- * enforced by *not fetching* rather than by hiding:
+ * Two privacy properties matter more than anything else here, and both are
+ * enforced by **not fetching** rather than by hiding:
  *
- *  1. **A non-public profile has no page.** It is excluded from
- *     `generateStaticParams`, so the route does not exist and returns 404.
- *  2. **Hidden means absent from the HTML**, never CSS-hidden. Rendering a
- *     private field and hiding it visually is a data leak that "view source"
- *     and any crawler both defeat.
+ *  1. **Hidden means absent from the HTML.** `getProfile` omits a field the
+ *     viewer may not see from the *query*, so it is not in the markup, not in
+ *     the RSC payload, and not in "view source". Rendering a private field and
+ *     hiding it with CSS is a leak that any crawler defeats without trying.
+ *  2. **A private profile is indistinguishable from a username that does not
+ *     exist.** Both render the same page, with the same title and the same
+ *     status. Any difference turns this route into a username enumeration
+ *     oracle.
  *
- * Contact details are additionally wrapped in `data-nosnippet` so they cannot
- * surface in a search snippet even when the user has made them public.
+ * Contact details are additionally wrapped in `data-nosnippet`, so they cannot
+ * surface in a search snippet even when the person has made them public.
  */
 
-export const dynamicParams = false;
-
-export function generateStaticParams() {
-  return people
-    .filter((p) => p.visibility === "PUBLIC" && collegeBySlug[p.collegeSlug]?.verified)
-    .map((p) => ({ username: p.username }));
+/**
+ * Dynamic, unlike the fixture version.
+ *
+ * A profile's visibility is now something its owner changes at runtime, so the
+ * set of valid paths is not knowable at build time. Public profiles are still
+ * prerendered; anything else is resolved per request and answers identically
+ * whether it is private or absent.
+ */
+export async function generateStaticParams() {
+  const usernames = await publicProfileUsernames();
+  return usernames.map((username) => ({ username }));
 }
 
 export async function generateMetadata(props: PageProps<"/p/[username]">): Promise<Metadata> {
   const { username } = await props.params;
-  const person = publicPerson(username);
-  if (!person) {
+  const profile = await getProfile(ANONYMOUS, username);
+
+  // Same metadata for private and non-existent. Deliberately not "Ananya's
+  // profile is private" — that would confirm Ananya has an account.
+  if (!profile) {
     return buildMetadata({
       title: "Profile not available",
-      description: "This profile is private or does not exist.",
+      description:
+        "This profile is private or does not exist. People on Nexivora choose who can see their work, and most keep it within their college.",
       path: `/p/${username}`,
       index: false,
     });
   }
 
-  const projects = projectsByPerson(username);
+  const college = profile.memberships[0]?.college;
+  const projects = profile.privacy.showProjects ? await listProjects(ANONYMOUS, { take: 100 }) : [];
+
+  const own = projects.filter((project) =>
+    project.members.some((member) => member.user.username === profile.username),
+  );
+
   return buildMetadata({
-    title: person.name,
+    title: profile.name,
     description: ensureDescription(
-      `${person.headline}. ${projects.length} published ${projects.length === 1 ? "project" : "projects"} at ${collegeBySlug[person.collegeSlug]?.shortName ?? "a verified college"}.`,
-      `Skills backed by project evidence and faculty attestation, in ${person.department}.`,
+      `${profile.headline ?? profile.name}. ${own.length} published ${own.length === 1 ? "project" : "projects"} at ${college?.shortName ?? "a verified college"}.`,
+      "Skills backed by project evidence and faculty attestation, not by self-declaration.",
     ),
     path: `/p/${username}`,
     type: "profile",
+    index: profile.indexable,
     og: {
-      eyebrow: person.role === "faculty" ? "Faculty" : "Student",
-      chips: [collegeBySlug[person.collegeSlug]?.shortName ?? ""].filter(Boolean),
+      eyebrow: profile.facultyProfile ? "Faculty" : "Student",
+      chips: [college?.shortName ?? ""].filter(Boolean),
     },
   });
 }
 
 export default async function ProfilePage(props: PageProps<"/p/[username]">) {
   const { username } = await props.params;
-  const person = publicPerson(username);
-  if (!person) notFound();
 
-  const college = collegeBySlug[person.collegeSlug];
-  const projects = projectsByPerson(username);
-  const ideas = ideasByPerson(username);
+  // The signed-in viewer, so a classmate sees a college-visible profile that
+  // the public cannot. The *page* is still safe for either.
+  const viewer = await currentViewer();
+  const profile = await getProfile(viewer, username);
 
-  const attestedSkills = person.skills.filter((s) => s.tier === "attested");
-  const evidencedSkills = person.skills.filter((s) => s.tier === "evidenced");
-  const selfSkills = person.skills.filter((s) => s.tier === "self");
+  if (!profile) return <ProfileUnavailable />;
+
+  const membership = profile.memberships[0];
+  const college = membership?.college;
+
+  const projectRows = profile.privacy.showProjects ? await listProjects(viewer, { take: 200 }) : [];
+
+  const projects = projectRows
+    .filter((project) =>
+      project.members.some((member) => member.user.username === profile.username),
+    )
+    .map((project) => toContentProjectCard(project));
+
+  // Skills arrive already carrying their source; `mergeSkills` orders them so
+  // the evidenced half of the list is what a reader meets first.
+  const skills = mergeSkills(
+    profile.skills.map((entry) => ({
+      name: entry.skill.name,
+      slug: entry.skill.slug,
+      source: entry.source,
+    })),
+    [],
+  ).map((skill) => {
+    const stored = profile.skills.find((entry) => entry.skill.slug === skill.slug);
+    return { ...skill, projectSlugs: stored?.projectIds ?? skill.projectSlugs };
+  });
+
+  const attested = skills.filter((skill) => skill.source === "ATTESTED");
+  const evidenced = skills.filter((skill) => skill.source === "PROJECT_INFERRED");
+  const claimed = skills.filter((skill) => skill.source === "SELF");
 
   const crumbs = [
     ...(college ? [{ label: college.shortName, href: `/colleges/${college.slug}` }] : []),
-    { label: person.name, href: `/p/${username}` },
+    { label: profile.name, href: `/p/${username}` },
   ];
+
+  const isFaculty = Boolean(profile.facultyProfile);
 
   return (
     <>
       <JsonLd
         data={[
           ...personProfile({
-            name: person.name,
-            username: person.username,
-            headline: person.headline,
-            bio: person.bio,
+            name: profile.name,
+            username: profile.username,
+            headline: profile.headline ?? "",
+            bio: profile.bio ?? "",
             college: college ? { name: college.name, slug: college.slug } : undefined,
-            skills: person.skills.map((s) => s.name),
-            links: person.links?.map((l) => l.url),
-            role: person.designation ?? person.programme,
+            // Matches the visible content exactly — structured data that
+            // describes fields the page does not show is a mismatch Google acts on.
+            skills: skills.map((skill) => skill.name),
+            links: profile.links.map((link) => link.url),
+            role:
+              profile.facultyProfile?.designation ??
+              profile.alumniProfile?.currentRole ??
+              undefined,
           }),
           breadcrumbList(crumbs),
         ]}
@@ -107,83 +161,99 @@ export default async function ProfilePage(props: PageProps<"/p/[username]">) {
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem]">
           <div className="min-w-0">
             <header className="flex flex-wrap items-start gap-5">
-              <Avatar
-                name={person.name}
-                seed={person.username}
-                size="xl"
-                verified={person.role === "faculty"}
-              />
+              <Avatar name={profile.name} seed={profile.username} size="xl" verified={isFaculty} />
               <div className="min-w-0 flex-1">
-                <h1 className="font-display text-3xl font-bold md:text-4xl">{person.name}</h1>
-                <p className="mt-2 text-base text-fg-muted md:text-lg">{person.headline}</p>
+                <h1 className="font-display text-3xl font-bold md:text-4xl">{profile.name}</h1>
+                {profile.headline ? (
+                  <p className="mt-2 text-base text-fg-muted md:text-lg">{profile.headline}</p>
+                ) : null}
+
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Badge tone="primary" className="capitalize">
-                    {person.role}
-                  </Badge>
+                  {membership ? (
+                    <Badge tone="primary" className="capitalize">
+                      {membership.role.replace("_", " ").toLowerCase()}
+                    </Badge>
+                  ) : null}
                   {college ? (
                     <Link href={`/colleges/${college.slug}`}>
                       <Badge tone="outline">{college.shortName}</Badge>
                     </Link>
                   ) : null}
-                  <Badge tone="outline">{person.department}</Badge>
+                  {profile.pronouns ? <Badge tone="outline">{profile.pronouns}</Badge> : null}
+                  {profile.location ? <Badge tone="outline">{profile.location}</Badge> : null}
                 </div>
               </div>
             </header>
 
-            <section className="mt-10">
-              <h2 className="border-b border-border pb-2 font-display text-xl font-bold">About</h2>
-              <p className="mt-4 max-w-[68ch] leading-relaxed text-fg-muted">{person.bio}</p>
-            </section>
+            {profile.bio ? (
+              <section className="mt-8">
+                <h2 className="font-display text-xl font-bold">About</h2>
+                <p className="mt-3 text-fg-muted">{profile.bio}</p>
+              </section>
+            ) : null}
 
-            {projects.length > 0 ? (
+            {/* ------------------------------------------------------ skills */}
+
+            {skills.length > 0 ? (
               <section className="mt-10">
-                <h2 className="border-b border-border pb-2 font-display text-xl font-bold">
-                  Published projects ({projects.length})
-                </h2>
+                <h2 className="font-display text-xl font-bold">Skills</h2>
+                <p className="mt-2 text-sm text-fg-muted">
+                  Evidenced skills come from finished projects. Self-declared ones do not, and are
+                  marked so — the difference is the point.
+                </p>
+
+                {attested.length > 0 ? (
+                  <SkillGroup
+                    title="Attested by faculty"
+                    description="A named supervisor put their signature to this."
+                    skills={attested}
+                  />
+                ) : null}
+
+                {evidenced.length > 0 ? (
+                  <SkillGroup
+                    title="From project work"
+                    description="Derived from what these projects actually used."
+                    skills={evidenced}
+                  />
+                ) : null}
+
+                {claimed.length > 0 ? (
+                  <SkillGroup
+                    title="Self-declared"
+                    description="Claimed, with no project evidence behind it yet."
+                    skills={claimed}
+                  />
+                ) : null}
+              </section>
+            ) : null}
+
+            {/* ---------------------------------------------------- projects */}
+
+            {profile.privacy.showProjects && projects.length > 0 ? (
+              <section className="mt-12">
+                <h2 className="font-display text-xl font-bold">Projects ({projects.length})</h2>
                 <div className="mt-5 grid gap-5 sm:grid-cols-2">
                   {projects.map((project) => (
-                    <ProjectCard key={project.slug} project={project} showCollege={false} />
+                    <ProjectCard key={project.slug} project={project} />
                   ))}
                 </div>
               </section>
             ) : null}
 
-            {ideas.length > 0 ? (
-              <section className="mt-10">
-                <h2 className="border-b border-border pb-2 font-display text-xl font-bold">
-                  Ideas posted
-                </h2>
-                <ul className="mt-4 space-y-2">
-                  {ideas.map((idea) => (
-                    <li key={idea.slug}>
-                      <Link
-                        href={`/ideas/${idea.slug}`}
-                        className="-mx-3 block rounded-lg px-3 py-2.5 hover:bg-surface-raised"
-                      >
-                        <span className="block text-sm font-medium">{idea.title}</span>
-                        <span className="mt-0.5 block text-xs text-fg-subtle">{idea.summary}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
+            {/* ------------------------------------------------ achievements */}
 
-            {person.achievements && person.achievements.length > 0 ? (
-              <section className="mt-10">
-                <h2 className="border-b border-border pb-2 font-display text-xl font-bold">
-                  Achievements
-                </h2>
-                <ul className="mt-4 space-y-3">
-                  {person.achievements.map((achievement) => (
-                    <li key={achievement.title} className="flex gap-3">
-                      <span className="font-mono text-sm text-fg-subtle tabular-nums">
-                        {achievement.year}
-                      </span>
+            {profile.achievements.length > 0 ? (
+              <section className="mt-12">
+                <h2 className="font-display text-xl font-bold">Achievements</h2>
+                <ul className="mt-4 grid gap-3">
+                  {profile.achievements.map((achievement) => (
+                    <li key={`${achievement.title}-${achievement.year}`} className="flex gap-3">
+                      <span className="font-mono text-sm text-fg-subtle">{achievement.year}</span>
                       <span>
-                        <span className="block text-sm font-medium">{achievement.title}</span>
+                        <span className="font-medium">{achievement.title}</span>
                         {achievement.detail ? (
-                          <span className="block text-sm text-fg-subtle">{achievement.detail}</span>
+                          <span className="block text-sm text-fg-muted">{achievement.detail}</span>
                         ) : null}
                       </span>
                     </li>
@@ -193,143 +263,99 @@ export default async function ProfilePage(props: PageProps<"/p/[username]">) {
             ) : null}
           </div>
 
-          <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
-            <Card className="p-5">
-              <h2 className="text-sm font-semibold">Skills</h2>
-              <p className="mt-1.5 text-xs text-fg-subtle">
-                Skills here point at evidence. A claim is a claim; an attested skill was signed by a
-                named faculty member.
-              </p>
+          {/* ------------------------------------------------------- sidebar */}
 
-              {attestedSkills.length > 0 ? (
-                <div className="mt-4">
-                  <TierBadge tier="attested" />
-                  <ul className="mt-2.5 space-y-1.5">
-                    {attestedSkills.map((skill) => (
-                      <li key={skill.name} className="text-sm">
-                        {skill.name}
-                        {skill.fromProjects ? (
-                          <span className="text-xs text-fg-subtle">
-                            {" "}
-                            · {skill.fromProjects} projects
-                          </span>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-
-              {evidencedSkills.length > 0 ? (
-                <div className="mt-4">
-                  <TierBadge tier="evidenced" />
-                  <ul className="mt-2.5 space-y-1.5">
-                    {evidencedSkills.map((skill) => (
-                      <li key={skill.name} className="text-sm">
-                        {skill.name}
-                        {skill.fromProjects ? (
-                          <span className="text-xs text-fg-subtle">
-                            {" "}
-                            · {skill.fromProjects} projects
-                          </span>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-
-              {selfSkills.length > 0 ? (
-                <div className="mt-4">
-                  <TierBadge tier="self" />
-                  <ul className="mt-2.5 space-y-1.5">
-                    {selfSkills.map((skill) => (
-                      <li key={skill.name} className="text-sm text-fg-muted">
-                        {skill.name}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </Card>
-
-            <Card className="p-5">
-              <h2 className="text-sm font-semibold">Details</h2>
-              <dl className="mt-3 space-y-2.5 text-sm">
-                {person.programme ? (
-                  <div>
-                    <dt className="text-xs text-fg-subtle">Programme</dt>
-                    <dd>
-                      {person.programme}
-                      {person.year ? `, year ${person.year}` : ""}
-                    </dd>
-                  </div>
-                ) : null}
-                {person.designation ? (
-                  <div>
-                    <dt className="text-xs text-fg-subtle">Designation</dt>
-                    <dd>{person.designation}</dd>
-                  </div>
-                ) : null}
-                {person.graduationYear ? (
-                  <div>
-                    <dt className="text-xs text-fg-subtle">Graduated</dt>
-                    <dd>{person.graduationYear}</dd>
-                  </div>
-                ) : null}
-                {person.currentRole ? (
-                  <div>
-                    <dt className="text-xs text-fg-subtle">Currently</dt>
-                    <dd>
-                      {person.currentRole}
-                      {person.organisation ? `, ${person.organisation}` : ""}
-                    </dd>
-                  </div>
-                ) : null}
-              </dl>
-
-              {person.interests.length > 0 ? (
-                <>
-                  <Divider className="my-4" />
-                  <h3 className="text-sm font-semibold">Interests</h3>
-                  <div className="mt-2.5 flex flex-wrap gap-1.5">
-                    {person.interests.map((interest) => (
-                      <Badge key={interest} tone="outline">
-                        {interest}
-                      </Badge>
-                    ))}
-                  </div>
-                </>
-              ) : null}
-            </Card>
-
-            {person.expertise && person.expertise.length > 0 ? (
+          <aside className="grid content-start gap-6">
+            {profile.studentProfile ? (
               <Card className="p-5">
-                <h2 className="text-sm font-semibold">Expertise</h2>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {person.expertise.map((area) => (
-                    <Badge key={area} tone="accent">
-                      {area}
-                    </Badge>
-                  ))}
-                </div>
+                <h2 className="font-display text-base font-semibold">Studying</h2>
+                <dl className="mt-3 grid gap-2 text-sm">
+                  {profile.studentProfile.year ? (
+                    <Row label="Year" value={`Year ${profile.studentProfile.year}`} />
+                  ) : null}
+                  {/* Only present when the student opted in AND the viewer is
+                      entitled — the query omitted it otherwise. */}
+                  {profile.rollNumber ? (
+                    <Row label="Roll number" value={profile.rollNumber} sensitive />
+                  ) : null}
+                  {profile.studentProfile.availableForTeams ? (
+                    <Row label="Teams" value="Open to joining a team" />
+                  ) : null}
+                </dl>
+
+                {profile.studentProfile.interests.length > 0 ? (
+                  <>
+                    <Divider className="my-4" />
+                    <div className="flex flex-wrap gap-1.5">
+                      {profile.studentProfile.interests.map((interest) => (
+                        <Badge key={interest} tone="outline" size="sm">
+                          {interest}
+                        </Badge>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
               </Card>
             ) : null}
 
-            {/* Links are user-supplied, so rel="ugc". data-nosnippet keeps any
-                contact detail out of a search snippet even when public. */}
-            {person.links && person.links.length > 0 ? (
-              <Card className="p-5" data-nosnippet>
-                <h2 className="text-sm font-semibold">Links</h2>
-                <ul className="mt-3 space-y-2 text-sm">
-                  {person.links.map((link) => (
+            {profile.facultyProfile ? (
+              <Card className="p-5">
+                <h2 className="font-display text-base font-semibold">Teaching</h2>
+                <dl className="mt-3 grid gap-2 text-sm">
+                  {profile.facultyProfile.designation ? (
+                    <Row label="Designation" value={profile.facultyProfile.designation} />
+                  ) : null}
+                  {profile.facultyProfile.officeHours ? (
+                    <Row label="Office hours" value={profile.facultyProfile.officeHours} />
+                  ) : null}
+                  {profile.facultyProfile.mentorshipAvailable ? (
+                    <Row label="Mentorship" value="Open to mentoring" />
+                  ) : null}
+                </dl>
+
+                {profile.facultyProfile.expertise.length > 0 ? (
+                  <>
+                    <Divider className="my-4" />
+                    <div className="flex flex-wrap gap-1.5">
+                      {profile.facultyProfile.expertise.map((area) => (
+                        <Badge key={area} tone="outline" size="sm">
+                          {area}
+                        </Badge>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+              </Card>
+            ) : null}
+
+            {profile.alumniProfile ? (
+              <Card className="p-5">
+                <h2 className="font-display text-base font-semibold">Since graduating</h2>
+                <dl className="mt-3 grid gap-2 text-sm">
+                  <Row label="Class of" value={String(profile.alumniProfile.graduationYear)} />
+                  {profile.alumniProfile.currentRole ? (
+                    <Row label="Role" value={profile.alumniProfile.currentRole} />
+                  ) : null}
+                  {profile.alumniProfile.organisation ? (
+                    <Row label="At" value={profile.alumniProfile.organisation} />
+                  ) : null}
+                </dl>
+              </Card>
+            ) : null}
+
+            {profile.links.length > 0 ? (
+              <Card className="p-5">
+                <h2 className="font-display text-base font-semibold">Links</h2>
+                <ul className="mt-3 grid gap-2 text-sm">
+                  {profile.links.map((link) => (
                     <li key={link.url}>
                       <a
                         href={link.url}
                         rel="ugc noopener"
-                        className="inline-flex items-center gap-1.5 text-primary-600 hover:underline"
+                        className="inline-flex items-center gap-1.5 underline underline-offset-4 hover:text-fg"
                       >
-                        {link.label} <ExternalIcon size={12} />
+                        {link.label}
+                        <ExternalIcon size={14} />
                       </a>
                     </li>
                   ))}
@@ -337,15 +363,101 @@ export default async function ProfilePage(props: PageProps<"/p/[username]">) {
               </Card>
             ) : null}
 
-            {!person.contactable ? (
-              <p className="flex items-start gap-2 text-xs text-fg-subtle">
-                <LockIcon size={14} className="mt-0.5 shrink-0" />
-                This person has not opted into being contacted through Nexivora.
-              </p>
+            {/* Present only when opted in and the viewer is entitled — and even
+                then withheld from search snippets. */}
+            {profile.email ? (
+              <Card className="p-5" data-nosnippet>
+                <h2 className="font-display text-base font-semibold">Contact</h2>
+                <p className="mt-2 text-sm break-all">{profile.email}</p>
+              </Card>
             ) : null}
           </aside>
         </div>
       </Container>
     </>
+  );
+}
+
+/* ------------------------------------------------------------- fragments */
+
+function Row({ label, value, sensitive }: { label: string; value: string; sensitive?: boolean }) {
+  return (
+    <div className="flex gap-3" {...(sensitive ? { "data-nosnippet": "" } : {})}>
+      <dt className="w-28 shrink-0 text-fg-subtle">{label}</dt>
+      <dd className="min-w-0">{value}</dd>
+    </div>
+  );
+}
+
+function SkillGroup({
+  title,
+  description,
+  skills,
+}: {
+  title: string;
+  description: string;
+  skills: Array<{
+    name: string;
+    slug: string;
+    source: string;
+    projectSlugs: string[];
+    reason: string;
+  }>;
+}) {
+  return (
+    <div className="mt-6">
+      <h3 className="text-sm font-semibold">{title}</h3>
+      <p className="mt-1 text-xs text-fg-subtle">{description}</p>
+
+      <ul className="mt-3 grid gap-2">
+        {skills.map((skill) => (
+          <li
+            key={skill.slug}
+            className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-lg border border-border px-3 py-2"
+          >
+            <span className="font-medium">{skill.name}</span>
+            <TierBadge
+              tier={
+                skill.source === "ATTESTED"
+                  ? "attested"
+                  : skill.source === "PROJECT_INFERRED"
+                    ? "evidenced"
+                    : "self"
+              }
+            />
+            <span className="text-xs text-fg-muted">{skill.reason}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * The page for a profile that is private **or does not exist**.
+ *
+ * Identical for both, on purpose. It explains the product's position rather
+ * than reporting a failure, because for most visitors this is not an error —
+ * it is somebody exercising a setting that is private by default.
+ */
+function ProfileUnavailable() {
+  return (
+    <Container className="py-20">
+      <div className="mx-auto grid max-w-md gap-4 text-center">
+        <span className="bg-bg-subtle mx-auto grid size-12 place-items-center rounded-full text-fg-muted">
+          <LockIcon size={22} />
+        </span>
+        <h1 className="font-display text-2xl font-bold">This profile is not available</h1>
+        <p className="text-fg-muted">
+          Profiles on Nexivora are private until someone chooses otherwise, and most people keep
+          theirs within their own college. There may be no account with this name at all.
+        </p>
+        <p className="text-sm">
+          <Link href="/explore" className="underline underline-offset-4">
+            Explore published project work instead
+          </Link>
+        </p>
+      </div>
+    </Container>
   );
 }

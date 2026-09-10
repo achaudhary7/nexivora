@@ -1,7 +1,12 @@
 # Data Model
 
-The authoritative definition is `app/prisma/schema.prisma` (Phase 3). This document explains the
-shape and, more importantly, the reasoning — the parts a schema file cannot tell you.
+The authoritative definition is `app/prisma/schema.prisma`. This document explains the shape and,
+more importantly, the reasoning — the parts a schema file cannot tell you.
+
+**Built in Phase 3 (2026-09-09): 90 models, 29 enums, 16 check constraints, 6 triggers, 10 GIN
+indexes.** The model-group counts below were pre-build estimates and read low, mostly because they
+did not count join tables. `scripts/verify-db.mjs` asserts the invariants described here; if this
+document and that script ever disagree, the script is right.
 
 ---
 
@@ -36,8 +41,15 @@ This is the single most important performance and security decision in the schem
   `AlumniProfile` / `CompanyProfile`, so a user can legitimately be an alumnus of one college and
   an employee of a company without contorting one table.
 - `Membership` is the join between a user, a college and a role, with a state
-  (`INVITED · ACTIVE · SUSPENDED · ALUMNI`). **A user's role is not global — it is per-membership.**
-  This is what allows the alumni transition to be a state change rather than a new account.
+  (`INVITED · ACTIVE · SUSPENDED · ALUMNI · GUEST`). **A user's role is not global — it is
+  per-membership.** This is what allows the alumni transition to be a state change rather than a new
+  account.
+- **`GUEST` is how cross-college collaboration works** (ADR-022). A student working on a partner
+  college's project holds a real membership there, so every "is this user a member of this college"
+  check keeps working unchanged — but the state keeps them out of that college's directory and
+  statistics. It requires an accepted `CollegePartnership`, and `db:verify` asserts both halves.
+  The alternative — a group member with no membership at the group's college — would turn one
+  predicate into a special case in every authorisation check, and the check that forgot would leak.
 - `AuditLog` is append-only: actor, action, subject type and id, before/after diff, IP, timestamp.
   Every administrative and evaluative action writes one.
 
@@ -209,3 +221,76 @@ The seed is not filler; it is the demo, and it must tell a story.
 `npm run db:reset` must rebuild all of this in under twenty seconds, and `npm run db:verify` must
 assert the integrity rules — no public project from an unapproved proposal, no ledger event without
 a corresponding action, no post without an anchor, no project outside its college's hierarchy.
+
+---
+
+## As built — what Phase 3 actually produced
+
+### Beyond the groups above
+
+Four models the plan implied but did not name:
+
+| Model | Why it exists |
+| --- | --- |
+| `Question` · `Answer` | `PostKind` includes `QUESTION`. The "exactly one anchor" constraint is meaningless if an anchor column points at a table that does not exist. |
+| `Resource` | Same, for `RESOURCE` — a shared paper, dataset or tool, stored as a link plus the annotation saying why it matters. |
+| `ActivityEvent` | The raw internal stream, separate from the rankable `Post`, so what generates a post can change without losing history. |
+
+### Invariants enforced by the database, not by convention
+
+```
+Post_exactly_one_anchor                 exactly one of projectId/ideaId/questionId/resourceId
+Project_public_requires_approval        visibility PUBLIC implies approved              (ADR-010)
+Project_approved_has_timestamp          approved implies approvedAt is set
+Project_completed_after_started         completedOn >= startedOn
+ProjectLineage_no_self_parent           a project cannot build on itself
+PeerReview_not_self / _scores_in_range  no self-review; 1..5
+MentorshipRequest_not_self              mentor <> mentee
+CollaborationRequest_not_self           sender <> recipient
+CollegePartnership_not_self             a <> b
+Follow_not_self                         no following yourself
+Term_ends_after_start                   endsOn > startsOn
+Group_size_limit_positive               sizeLimit > 0
+RubricCriterion_weight_range            0 < weight <= 100
+Opportunity_valid_through_after_posted  an expiry after the posting date
+Opportunity_stipend_range               max >= min
+```
+
+Rules a check constraint cannot express — because they need a join or a graph walk — are asserted by
+`scripts/verify-db.mjs` instead: the ledger pointing only at actions that exist, the lineage graph
+being acyclic, cross-college guests having a partnership, and `FACULTY_ATTESTED` contributions
+having an actual attestation behind them.
+
+### `Follow` deliberately has no foreign key
+
+`targetId` points into five different tables depending on `targetType`, so a constraint to any
+one of them would reject the other four. A fake FK that holds for a fifth of the rows is worse than
+none; `db:verify` asserts every follow resolves instead.
+
+### Full-text search
+
+`searchVector` columns on **Project, Idea, Post, User, Resource**, maintained by triggers and never
+written by application code. Weighting per entity, A → D:
+
+| Entity | A | B | C | D |
+| --- | --- | --- | --- | --- |
+| Project | title | keywords, stack, domain, dept | summary + abstract | section bodies |
+| Idea | title | skills needed, domain | summary | problem + approach |
+| User | name | username | headline | bio + location |
+| Resource | title | tags, kind | summary | — |
+| Post | body | — | — | — |
+
+Editing a project section refreshes its parent project's vector — a separate trigger, asserted
+separately, because a trigger that fires on insert but not on update serves stale results silently.
+
+Trigram (`gin_trgm_ops`) indexes additionally cover `Project.problemNormalised`,
+`Idea.problemNormalised`, `Project.title`, `User.name` and `User.username`, so a misspelled
+search still finds the right thing.
+
+### Reading the data
+
+Never query `db` directly from a page. `src/lib/db/queries/` takes a **`Viewer`** as its first
+argument, always — including for the logged-out public, where `ANONYMOUS` is a real viewer rather
+than a null. `visibleTo(viewer)` is the database-side visibility predicate, written once and
+composed by every query, and `db:verify` asserts it selects exactly the same public projects as
+the Phase 2 fixtures do.

@@ -11,6 +11,34 @@
 | **Started** | — |
 | **Completed** | — |
 
+## What Phase 3 already provides
+
+*Added 2026-09-09, when Phase 3 completed. Check these before building — the most common way to
+waste a phase is to rebuild something the previous one shipped.*
+
+- **`ProjectLineage` is a table, not a parent pointer** — a project can build on more than one
+  predecessor. A **three-level chain is seeded** (`smart-irrigation-soil-moisture` →
+  `irrigation-forecast-lstm` → `canal-scheduling-multi-farm`) so the tree is not a single node.
+- **`db:verify` asserts the graph is acyclic** and that the deepest chain is at least three levels.
+- **`Project.citationId` is assigned once at archive time and is immutable.** It goes into other
+  people's reference lists — never recompute it from mutable fields.
+- **An embargoed project is listed with its body withheld.** `battery-second-life-grading` is
+  seeded embargoed until 2027-03-31, and `isEmbargoed()` in `queries/projects.ts` already
+  decides.
+
+## What Phase 7 already provides
+
+*Added 2026-09-10, when Phase 7 completed.*
+
+- **The three-tier contribution proof has its evidence layer.** The ledger records what each member
+  actually did, and `scoreMembers()` turns it into a per-member share with every number traceable
+  to its events via `/groups/[id]/activity`. "Workspace-evidenced" means *this*.
+- **The ledger is append-only** (ADR-038), which is what makes it citable in an archived record: a
+  contribution claim on an archived project cannot be revised after the fact.
+- **Peer review aggregates exist per member** and are faculty-visible in detail. Whatever the
+  archive surfaces, it must not surface authorship — ADR-008 does not lapse when a project is
+  archived.
+
 ## Objective
 
 Make student work **permanent, citable, verifiable and public** — the differentiator that turns a

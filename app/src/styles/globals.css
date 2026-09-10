@@ -143,6 +143,27 @@
   --color-domain-social: #c2410c;
   --color-domain-research: #1d4ed8;
 
+  /* --- Chart series set (6, CVD-validated) --------------------------------
+     A SEPARATE set from the domain palette above, and the reason is worth
+     recording: the domain colours are contrast-checked against the *surface*,
+     which is the right test for a badge and the wrong one for a chart. Marks
+     in a chart must be distinguishable from *each other*, under protanopia and
+     deuteranopia, which is a different measurement entirely — and the domain
+     set fails it (crimson vs amber, deuteran ΔE 5.7 against a target of 8).
+
+     These six are the output of scripts/check-chart-palette.mjs, which runs the
+     same six checks in both themes. Worst adjacent pair: ΔE 20.0 light, 19.0
+     dark. Six hues cannot separate on ALL pairs inside the dark lightness band —
+     nothing can, we searched — so charts using more than a couple of series use
+     small multiples with a name beside each facet, and colour is never the only
+     thing telling two series apart. */
+  --color-series-1: #0891b2;
+  --color-series-2: #b45309;
+  --color-series-3: #4f46e5;
+  --color-series-4: #be123c;
+  --color-series-5: #7e22ce;
+  --color-series-6: #047857;
+
   /* --- Typography --------------------------------------------------------- */
   --font-display: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
@@ -274,6 +295,16 @@
     --color-domain-social: #fdba74;
     --color-domain-research: #93c5fd;
 
+    /* Chart series, dark. Its own steps — the light values sit above the dark
+       lightness band (L 0.48–0.67) and would glare; the 400-step domain values
+       sit above it too, which is what made a separate set necessary. */
+    --color-series-1: #0891b2;
+    --color-series-2: #d97706;
+    --color-series-3: #6366f1;
+    --color-series-4: #f43f5e;
+    --color-series-5: #a855f7;
+    --color-series-6: #059669;
+
     --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.4);
     --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.5);
     --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.55);
@@ -349,6 +380,15 @@
   --color-domain-sustainability: #6ee7b7;
   --color-domain-social: #fdba74;
   --color-domain-research: #93c5fd;
+
+  /* Chart series, dark — same steps as the media-query block above. Both
+     exist so an explicit theme choice wins in either direction. */
+  --color-series-1: #0891b2;
+  --color-series-2: #d97706;
+  --color-series-3: #6366f1;
+  --color-series-4: #f43f5e;
+  --color-series-5: #a855f7;
+  --color-series-6: #059669;
 
   --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.4);
   --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.5);
@@ -468,6 +508,13 @@
   --color-domain-sustainability: var(--color-domain-sustainability);
   --color-domain-social: var(--color-domain-social);
   --color-domain-research: var(--color-domain-research);
+
+  --color-series-1: var(--color-series-1);
+  --color-series-2: var(--color-series-2);
+  --color-series-3: var(--color-series-3);
+  --color-series-4: var(--color-series-4);
+  --color-series-5: var(--color-series-5);
+  --color-series-6: var(--color-series-6);
 
   --font-display: var(--font-display);
   --font-sans: var(--font-sans);

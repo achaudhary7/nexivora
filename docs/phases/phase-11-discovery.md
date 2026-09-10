@@ -9,6 +9,20 @@
 | **Started** | — |
 | **Completed** | — |
 
+## What Phase 3 already provides
+
+*Added 2026-09-09, when Phase 3 completed. Check these before building — the most common way to
+waste a phase is to rebuild something the previous one shipped.*
+
+- **Full-text search is built.** `lib/search/fts.ts` has `searchProjects`, `searchIdeas` and
+  `searchPeople`, all parameterised. Vectors are trigger-maintained on Project, Idea, Post, User
+  and Resource with A/B/C/D weighting, and `db:verify` asserts the ranking behaves.
+- **`toTsQuery()` already handles hostile input** and adds trailing-prefix matching for
+  search-as-you-type. Every token is stripped to `[a-z0-9]`, so the output is safe by construction.
+- **Trigram indexes cover titles and names**, so a misspelling still finds the right thing.
+- **`src/config/taxonomy.ts` is seeded into `Topic` and `Sdg`** — 24 topics, 17 goals. It
+  remains the single definition; the tables exist for joins and counts.
+
 ## Objective
 
 Make everything on the platform findable, and make forming a team a solved problem rather than a

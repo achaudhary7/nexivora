@@ -9,6 +9,28 @@
 | **Started** | — |
 | **Completed** | — |
 
+## What Phase 4 already provides
+
+*Added 2026-09-09, when Phase 4 completed.*
+
+- **`can(viewer, action, resource)` in `src/lib/authz/policy.ts` is the only place a permission
+  is decided.** 41 actions, 100 matrix assertions. If you are about to write `if (role === …)`,
+  the rule belongs there instead.
+- **Every query takes `viewer` first**, including for the logged-out public where `ANONYMOUS` is
+  a real viewer. A denied read returns `null`; a denied write throws `ForbiddenError`.
+- **Roles are per membership; faculty scope is per subject.** There is no `viewer.role` (ADR-029).
+- **Guards protect pages, the query protects data** (ADR-028). Anything you add must be safe with
+  `proxy.ts` disabled — `isolation.test.ts` asserts exactly that.
+- **SMTP is this phase's job.** `EMAIL_TRANSPORT=smtp` currently **throws** rather than silently
+  dropping mail. Five templates exist (verify, reset, password-changed, account-locked, invitation);
+  they need a real sender, SPF and DKIM.
+- **`AUTH_SECRET` is used to salt hashed IP addresses.** Changing it in production invalidates the
+  device fingerprints shown on the security page — harmless, but it will look like new devices.
+- **Session cookies set `secure` from `NODE_ENV=production`.** Behind Nginx, `X-Forwarded-Proto`
+  must reach the app or the cookie will be dropped over what the app thinks is plain HTTP.
+- **Add `npm run check:auth` to CI** alongside the build — it needs a running server and a seeded
+  database, and it is the only check that exercises the flows end to end.
+
 ## Objective
 
 Get Nexivora running on a real domain, reliably, with backups that have actually been restored and

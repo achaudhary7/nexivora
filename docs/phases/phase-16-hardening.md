@@ -9,6 +9,29 @@
 | **Started** | — |
 | **Completed** | — |
 
+## What Phase 4 already provides
+
+*Added 2026-09-09, when Phase 4 completed.*
+
+- **`can(viewer, action, resource)` in `src/lib/authz/policy.ts` is the only place a permission
+  is decided.** 41 actions, 100 matrix assertions. If you are about to write `if (role === …)`,
+  the rule belongs there instead.
+- **Every query takes `viewer` first**, including for the logged-out public where `ANONYMOUS` is
+  a real viewer. A denied read returns `null`; a denied write throws `ForbiddenError`.
+- **Roles are per membership; faculty scope is per subject.** There is no `viewer.role` (ADR-029).
+- **Guards protect pages, the query protects data** (ADR-028). Anything you add must be safe with
+  `proxy.ts` disabled — `isolation.test.ts` asserts exactly that.
+- **Google OAuth belongs here** (ADR-004). `Account` is already Auth.js-shaped, so adopting
+  Auth.js for OAuth needs no migration — and by then v5 may be stable. Read ADR-027 first: its
+  Credentials provider cannot do database sessions, so the session layer stays regardless.
+- **Left for this phase deliberately:** 2FA, account deletion (the account page describes the
+  behaviour already), and a k-anonymity check against Have I Been Pwned to replace the small
+  in-repo common-password list.
+- **`RATE_LIMIT_ENABLED` must be `true` in production.** It is off in development so local
+  iteration is not throttled, which means the limiter is only exercised when someone turns it on.
+- **`LoginAttempt` rows are pruned after 24 hours** — they are tied to an identifier and are
+  personal data. Confirm the prune actually runs under production traffic.
+
 ## Objective
 
 Make the product safe to put real students on. Everything here has been designed for since Phase 4,

@@ -28,8 +28,15 @@
  *   npm run db:destroy  stop and delete the data directory (not the binaries)
  */
 
-import { spawn, spawnSync } from "node:child_process";
-import { createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import {
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { dirname, join, resolve } from "node:path";
@@ -137,10 +144,13 @@ function ensureCluster() {
   writeFileSync(PWFILE, PASSWORD, "utf8");
 
   const init = run(exe("initdb"), [
-    "-D", DATA,
-    "-U", USER,
+    "-D",
+    DATA,
+    "-U",
+    USER,
     `--pwfile=${PWFILE}`,
-    "-E", "UTF8",
+    "-E",
+    "UTF8",
     "--locale=C",
   ]);
   rmSync(PWFILE, { force: true });
@@ -174,13 +184,7 @@ function start() {
     return;
   }
   log(`Starting on port ${PORT}…`);
-  const started = run(exe("pg_ctl"), [
-    "-D", DATA,
-    "-l", LOG,
-    "-o", `-p ${PORT}`,
-    "-w",
-    "start",
-  ]);
+  const started = run(exe("pg_ctl"), ["-D", DATA, "-l", LOG, "-o", `-p ${PORT}`, "-w", "start"]);
   if (started.status !== 0) {
     const tail = existsSync(LOG) ? readFileSync(LOG, "utf8").split("\n").slice(-15).join("\n") : "";
     throw new Error(`Start failed:\n${started.stderr || started.stdout}\n${tail}`);
@@ -199,13 +203,7 @@ function stop() {
 }
 
 function psql(sql, database = "postgres") {
-  return run(exe("psql"), [
-    "-h", "localhost",
-    "-p", PORT,
-    "-U", USER,
-    "-d", database,
-    "-tAc", sql,
-  ]);
+  return run(exe("psql"), ["-h", "localhost", "-p", PORT, "-U", USER, "-d", database, "-tAc", sql]);
 }
 
 /**
@@ -260,7 +258,8 @@ try {
       start();
       ensureDatabase();
       const check = verify();
-      if (!check.ok) throw new Error("pg_trgm is installed but similarity() did not return a value.");
+      if (!check.ok)
+        throw new Error("pg_trgm is installed but similarity() did not return a value.");
       log(`PostgreSQL ${check.version} · similarity('nexivora','nexivore') = ${check.similarity}`);
       console.log(`\n  DATABASE_URL="${connectionUrl()}"\n`);
       break;

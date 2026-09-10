@@ -19,7 +19,7 @@
 | Styling | **Tailwind CSS v4 + CSS custom properties** | Design tokens live in CSS variables, so light/dark and per-college white-labelling are one variable swap. Output is purged to what we actually use — typically under 15 KB gzipped. |
 | Components | **Hand-built primitives on Radix UI** | Radix supplies accessible unstyled behaviour (dialog focus trap, combobox keyboard nav, popover positioning). We style each one once in `components/ui/` and never re-implement. No megabyte component library shipped to the browser. |
 | Database | **PostgreSQL 16 — dev and production** | Not SQLite. This product needs full-text search across projects, ideas, posts and people (`tsvector` + GIN) and trigram similarity for duplicate-project detection (`pg_trgm`). Both are built into Postgres and free. Doing dev on SQLite and prod on Postgres would mean the two most important queries in the product are untested until deployment. See ADR-003. |
-| ORM | **Prisma** | Type-safe queries, real migration history, and a seed script — which matters enormously for a demo that must be resettable in ten seconds. Raw SQL where Postgres FTS needs it. |
+| ORM | **Prisma 7.10.0, pinned** | Type-safe queries, real migration history, and a seed script — which matters enormously for a demo that must be resettable in ten seconds. Raw SQL where Postgres FTS needs it. Pinned because the `latest` tag has pointed at a release candidate (ADR-002); Prisma 7 needs `prisma.config.ts` and the `@prisma/adapter-pg` driver adapter. |
 | Auth | **Auth.js v5 (NextAuth), credentials + JWT sessions** | Free, self-hosted, no external identity provider, no per-MAU billing. Role and institution claims in the JWT drive middleware route gating. Google OAuth added later as a convenience, never as the only path. |
 | Realtime | **Server-Sent Events for notifications and presence; polling for chat** | SSE is one HTTP response, works behind Nginx, needs no extra service, and costs nothing. Socket.io is deferred until a measured need. All of it sits behind `lib/realtime/` so the transport can change without touching a feature. See ADR-006. |
 | File storage | **Local disk in dev and on the VPS, behind a `StorageProvider` interface** | Uploads are served through a signed, authorisation-checked route handler — never a bare static path. Cloudflare R2 (10 GB free) drops in later by implementing one interface. |
@@ -28,7 +28,7 @@
 | PDF / QR | **@react-pdf/renderer + qrcode** | Server-side portfolio PDFs, certificates and accreditation exports. Both MIT, both offline. |
 | Validation | **Zod 4** | One schema validates the form on the client and the payload on the server. No drift. |
 | Email | **Nodemailer — console transport in dev** | Free. Swaps to Hostinger SMTP or Brevo's free tier (300/day) in production with no code change. |
-| Testing | **Vitest + Playwright** | Vitest for the permission matrix, the contribution ledger maths and the similarity scorer — the parts that must be right. Playwright for the four critical end-to-end journeys. |
+| Testing | **`node --test` + Playwright** | Node 24 runs TypeScript directly and ships a stable test runner, so the unit tests that matter — the permission matrix, the ledger maths, the similarity scorer — need no framework and no build step (**ADR-024**, revising the original Vitest choice). Playwright still owns the four critical end-to-end journeys. Revisit if component tests need a DOM. |
 
 **Rejected, deliberately:** Vercel (owner constraint), Firebase/Supabase (vendor lock-in and a
 pricing cliff exactly when the product succeeds), any paid API, any component library that ships a
@@ -114,9 +114,9 @@ already shipped and already works.
 | 0 | Foundation & Setup | Repo, stack, tooling, docs, tracking, env | 4h | ⬜ |
 | 1 | Design System & Brand | Logo, tokens, UI kit, Header/Footer, icons, a11y | 8h | ⬜ |
 | 2 | Public Site & SEO Core | 25+ public pages, sitemap, JSON-LD, OG images | 10h | ⬜ |
-| 3 | Data Model & Seed | Prisma schema, hierarchy, taxonomy, demo college | 7h | ⬜ |
-| 4 | Auth, Roles & RBAC | 7 roles, sessions, onboarding, route + data gating | 7h | ⬜ |
-| 5 | Institution Backbone | College/dept/subject/class admin, invites, imports | 8h | ⬜ |
+| 3 | Data Model & Seed | Prisma schema, hierarchy, taxonomy, demo college | 7h | ✅ |
+| 4 | Auth, Roles & RBAC | 7 roles, sessions, onboarding, route + data gating | 7h | ✅ |
+| 5 | Institution Backbone | College/dept/subject/class admin, invites, imports | 8h | ✅ |
 | 6 | Profiles & Academic Identity | Profiles, public `/p/[username]`, privacy, skill graph | 7h | ⬜ |
 | 7 | Group Workspace | Groups, tasks, files, discussion, meetings, **ledger** | 14h | ⬜ |
 | 8 | Project Lifecycle & Pages | Structured project record, milestones, SDG, submission | 10h | ⬜ |
@@ -172,14 +172,20 @@ canonical; every page renders with JavaScript disabled; sitemap validates.
 → `docs/phases/phase-02-public-seo.md`
 
 ### Phase 3 — Data Model, Taxonomy & Seed
-The full Prisma schema (~60 models), migrations, Postgres extensions (`pg_trgm`, `unaccent`), FTS
-columns and GIN indexes, and the seed data that makes everything else possible: the complete
-academic hierarchy for one demo college, a two-level domain taxonomy (AI/ML, software, hardware,
-healthcare, education, sustainability, social impact and more), a skill taxonomy, the 17 SDGs,
-demo users across all seven roles, groups mid-project, and a small archive of completed projects
-with lineage already recorded.
-**Exit:** `npm run db:reset` rebuilds a complete, believable demo college in under twenty seconds;
-the integrity suite passes. → `docs/phases/phase-03-data-model.md`
+**Built: 90 models, 29 enums, 3 migrations, 16 check constraints, 6 triggers, 10 GIN indexes.**
+The academic hierarchy for three colleges, the taxonomy and the 17 SDGs seeded from
+`src/config/taxonomy.ts`, demo users across all seven roles, groups mid-project, and an archive
+with a real three-level lineage chain.
+
+The invariants live in the database rather than in convention: every feed post has exactly one
+anchor, and a publicly visible project without faculty approval cannot be stored. Full-text search
+is trigger-maintained with A/B/C/D weighting, and the duplicate detector is a tested pure function
+over a trigram shortlist.
+
+**Exit — met:** `npm run db:reset` rebuilds the demo world in **3.4s** (budget 20s) and is
+byte-for-byte reproducible; `npm run db:verify` passes **26 / 26** assertions, including that the
+anonymous query layer returns exactly the same public projects as the Phase 2 fixtures.
+→ `docs/phases/phase-03-data-model.md`
 
 ### Phase 4 — Authentication, Roles & RBAC
 Register, login, logout, password reset, email verification (console transport in dev), the seven

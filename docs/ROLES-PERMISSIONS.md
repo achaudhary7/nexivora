@@ -1,7 +1,20 @@
 # Roles & Permissions
 
-This is the authorisation contract. It is implemented once, in `src/lib/authz/policy.ts`, and it is
-unit-tested as a matrix in Phase 4. **No feature re-implements a permission check.**
+This is the authorisation contract. It is implemented once, in `src/lib/authz/policy.ts`, and
+asserted as a matrix in `src/lib/authz/policy.test.ts`. **No feature re-implements a permission
+check.**
+
+**Implemented in Phase 4 (2026-09-09):** 41 actions, 100 matrix assertions, plus a cross-college
+sweep that is exhaustive over the action union. If this document and `policy.ts` ever disagree,
+**this document is the specification and the code is the bug** — and the test is what tells you.
+
+Two additions Phase 4 made to what is written below:
+
+- **`GUEST` membership** (ADR-022) grants project-scoped access at a partner college and never
+  college-wide reach. It requires an accepted `CollegePartnership`.
+- **A platform admin cannot grade a project or submit a peer review.** An academic judgement belongs
+  to the faculty member who supervised the work; the second would be a fabricated review. Every
+  other action is permitted, and every one is written to the append-only `AuditLog`.
 
 ---
 
@@ -124,9 +137,11 @@ The hardest rule in the system, and the one worth stating on its own:
 
 Enforced three ways, deliberately redundant:
 
-1. Middleware rejects a route whose `collegeId` segment does not match a membership.
-2. Every scoped query function takes `viewer` and applies the `collegeId` predicate.
-3. Integration tests in Phase 4 attempt cross-college reads on every scoped query and assert `null`.
+1. `src/proxy.ts` redirects an unauthenticated request away from a signed-in route.
+2. **Every scoped query takes `viewer` and applies the predicate. This is the boundary** — layers
+   1 and 3 are convenience and evidence respectively (ADR-028).
+3. `isolation.test.ts` attempts cross-college reads **with the proxy disabled** and asserts empty,
+   with a positive control proving the predicate is not simply denying everything.
 
 Cross-college collaboration (Phase 14) works by creating an **explicit `CollegePartnership` and a
 per-project guest membership** — never by relaxing the isolation rule.

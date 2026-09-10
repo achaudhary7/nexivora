@@ -521,3 +521,667 @@ PostgreSQL normally on the VPS.
 
 **Verified:** PostgreSQL 16.8 running on 5433, database created, `pg_trgm`, `unaccent` and `citext`
 installed, and `similarity('nexivora','nexivore') = 0.6363636`.
+
+---
+
+## ADR-022 — Cross-college collaboration uses a GUEST membership, not a membership-shaped hole
+
+**Date:** 2026-09-09 · **Phase:** 3 · **Status:** Accepted
+
+**Context.** `scripts/verify-db.mjs` asserts that every group member holds a membership at that
+group's college — the isolation rule, which nearly every authorisation question in the product
+reduces to. It failed on three rows.
+
+They were not a seeding bug. The fixtures deliberately contain inter-college work: the campus
+air-quality mesh is "built jointly by teams at two colleges", and its backend lead, `arjun-rao`, is
+a Meridian student on two Nexivora projects and one Greenfield project. The architecture already
+said cross-college work happens "by an explicit partnership plus a per-project guest membership" —
+but `MembershipState` had no way to say "guest", so the data said nothing at all.
+
+**Decision.** Add `MembershipState.GUEST`. A guest holds a real `Membership` row at the host
+college, so every "is this user a member of this college" check keeps working unchanged, and the
+state marks them as belonging elsewhere: never in the college directory, never in its statistics,
+visible only in the groups they were added to.
+
+Two things are required together, and `db:verify` asserts both:
+
+1. The guest holds a `GUEST` membership at the host college — nobody holds full membership at two.
+2. The two colleges have an **accepted `CollegePartnership`**.
+
+The seed derives the partnerships from the guest memberships rather than hardcoding them, so the two
+can never drift apart.
+
+**Alternatives rejected.**
+
+- *Give the guest an ordinary `ACTIVE` membership.* They would appear as a full student of a college
+  they do not attend — in its directory, its counts, and its accreditation export.
+- *Allow group members with no membership at the group's college.* This is the tempting one, and it
+  is the worst: it turns a single predicate into a special case that every future authorisation
+  check has to remember. The one that forgets is a data leak.
+
+**Consequences.** Isolation stays one predicate. The exception is explicit, auditable, and requires
+a partnership that somebody had to accept. Phase 5's college surfaces must filter guests out of
+directories and counts — the state makes that a filter rather than a judgement call.
+
+---
+
+## ADR-023 — Problem similarity is the geometric mean of Dice and containment, not Jaccard
+
+**Date:** 2026-09-09 · **Phase:** 3 · **Status:** Accepted
+
+**Context.** The duplicate detector's unit test used invented problem statements of similar length
+and passed comfortably at 0.562. Run against the **actual seeded pair** — an archived project with a
+full multi-paragraph PROBLEM section, and the proposed near-duplicate that covers the same ground in
+two sentences — it scored **0.420 and failed**, on a pair constructed specifically to be caught.
+
+The cause is structural, not a tuning miss. Jaccard divides by the union, so a short statement almost
+entirely subsumed by a long one still scores low purely because the long one has more trigrams. Real
+problem statements differ enormously in length; the test's did not.
+
+**Decision.** Measure candidates against the whole corpus and pick on the numbers:
+
+| measure | near-duplicate | worst unrelated pair | |
+| --- | --- | --- | --- |
+| jaccard | 0.420 | 0.278 | misses the threshold |
+| dice | 0.501 | 0.351 | |
+| containment | 0.704 | 0.368 | rates unrelated work "related" |
+| geo(jaccard, containment) | 0.521 | 0.316 | |
+| **geo(dice, containment)** | **0.585** | **0.359** | **chosen** |
+
+Containment (`|A ∩ B| / min(|A|, |B|)`) fixes the length asymmetry but is too generous alone — it
+rated an attendance-recognition project as related to an irrigation controller. Requiring **both**,
+via their geometric mean, demands genuine shared vocabulary *and* subsumption. It is the only
+candidate that gets all three semantic cases right.
+
+Two guards came out of the same exercise:
+
+- **`MIN_CONTAINMENT_TRIGRAMS = 60`.** Below roughly a dozen content words, containment is noise: a
+  six-word fragment is "50% contained" in almost any longer document. Under the floor the score
+  falls back to Dice alone.
+- **`PROBLEM_CORROBORATION_FLOOR = 0.15`.** Topic and stack overlap now *scale with* the problem
+  match rather than adding to it. Two projects sharing only Python, PostgreSQL and React scored
+  0.203 — over the "related" line on stack alone, on problems as different as bus routing and
+  hospital triage. Half a department shares a stack.
+
+**Consequences.** The scorer is more code and needs its comment block. In exchange the seeded
+duplicate is caught with a wide margin and unrelated work is left alone. `pg_trgm`'s `similarity()`
+is still plain Jaccard, so the SQL shortlist deliberately over-fetches at a low floor and lets the
+weighted scorer decide — and `db:verify` asserts the shortlist actually returns the pair the scorer
+flags, because an index and a scorer that disagree under-report silently.
+
+**The lesson, recorded because it generalises:** the unit test was easier than production and
+therefore told us nothing. It now reads the fixtures directly, so it cannot drift back.
+
+---
+
+## ADR-024 — Node's built-in test runner, not a test framework
+
+**Date:** 2026-09-09 · **Phase:** 3 · **Status:** Accepted
+
+**Context.** Phase 3 needed unit tests for the similarity scorer — a heuristic nobody has tested
+against known pairs is just an opinion. The reflex is to add Vitest or Jest.
+
+**Decision.** Use `node --test`. Node 24 ships a stable test runner and executes TypeScript directly,
+so the cost is zero dependencies and zero build step. The two gaps — the `@/` path alias and
+extensionless imports — are bridged by `scripts/test-resolver.mjs`, about forty lines, registered
+via `--import`.
+
+**Alternatives rejected.** *Vitest* is excellent and would bring roughly 30 transitive packages,
+a config file and its own transform pipeline, to run pure functions with no DOM. *Writing tests in
+plain JS* would mean the tests do not typecheck against the code they test.
+
+**Consequences.** `npm run test` and `npm run test:watch` work with nothing installed. If a later
+phase needs component testing with a DOM, that is the point to revisit this — the decision is about
+what Phase 3 needed, not a permanent refusal. The resolver hook is the one piece of machinery to
+maintain, and it is small enough to read in a sitting.
+
+---
+
+## ADR-025 — The seed is deterministic
+
+**Date:** 2026-09-09 · **Phase:** 3 · **Status:** Accepted
+
+**Context.** The seed makes thousands of choices: who is assigned which task, who attends which
+meeting, which students express interest in an idea. With `Math.random()` every `db:reset` produces
+a different world.
+
+**Decision.** One `mulberry32` PRNG, seeded with a constant, threaded through every module. Ids are
+a SHA-256 of a natural key rather than random cuid2, so rows can reference each other across modules
+without threading return values through every function.
+
+Two consecutive resets produce an identical md5 fingerprint over projects, users, ledger events,
+posts and follows. This is asserted by hand rather than in CI today; it should become a CI step in
+Phase 17.
+
+**Consequences.** Screenshots stay valid. Documentation can name a specific student and still be
+right next week. A failing assertion in `db:verify` is reproducible instead of a coin flip. Tests
+can reference seeded rows. The cost is that the seed must never call `Math.random()`, `Date.now()`
+or `crypto.randomUUID()` — a rule worth stating because one careless line silently removes the
+property, and nothing fails loudly when it does.
+
+The ids are deterministic **only in the seed**. Application code always uses the schema's
+`cuid(2)` default; a predictable id in production would be an enumeration risk.
+
+---
+
+## ADR-026 — scrypt for passwords, not bcrypt
+
+**Date:** 2026-09-09 · **Phase:** 4 · **Status:** Accepted · **Supersedes** the Phase 4 spec's
+"bcrypt cost 12"
+
+**Context.** The Phase 4 spec named bcrypt. It was written before Phase 3 existed, and Phase 3
+seeded 87 accounts with scrypt from `node:crypto`. Switching to bcrypt would lock every one of them
+out — which on its own is not a reason to keep a weaker algorithm, so the question is whether scrypt
+is weaker.
+
+It is not. scrypt is **memory-hard** and bcrypt is not, which is the property that matters against
+GPU and ASIC cracking. OWASP's Password Storage guidance lists scrypt as an acceptable choice where
+Argon2id is unavailable — and Argon2id would mean a native module, which on Windows is exactly the
+kind of dependency ADR-021 exists to avoid. scrypt ships with Node.
+
+**Decision.** scrypt at OWASP's recommended parameters: **N=2¹⁷, r=8, p=1**. Measured on the
+development machine at 128 MB and ~400 ms.
+
+Three details, each of which is a trap if reversed:
+
+- **Asynchronous, always.** `scryptSync` at these parameters blocks the event loop for 400 ms —
+  every other request on the server waits behind one login. The async form runs on libuv's thread
+  pool, so concurrency is bounded by `UV_THREADPOOL_SIZE` (4 by default): 4 × 128 MB, not unbounded.
+  This is the reason the memory cost is affordable on a 8 GB VPS at all.
+- **The parameters live inside the hash** — `scrypt$N$r$p$salt$hash`. Cost becomes tunable later
+  with no migration and no stranded users.
+- **Upgrade on sign-in.** `needsRehash()` reports a hash made with weaker parameters and the login
+  path silently rehashes. Verified in practice: after the first end-to-end sign-in, the seeded
+  account's stored hash moved from `N=16384` (four fields) to `N=131072` (six). Without this,
+  tuning the cost only ever protects new accounts and the oldest passwords stay the weakest.
+
+**Consequences.** Zero dependencies, the seeded demo accounts keep working, and the migration path
+for future tuning already exists and is tested. The cost is a deliberate ~400 ms per sign-in, which
+is the entire point of a password KDF and is bounded by the rate limiter.
+
+---
+
+## ADR-027 — A purpose-built session layer, not Auth.js
+
+**Date:** 2026-09-09 · **Phase:** 4 · **Status:** Accepted · **Supersedes** the Phase 4 spec's
+"Auth.js v5, JWT sessions"
+
+**Context.** The spec named Auth.js v5. Two facts, both checked rather than assumed:
+
+1. **Auth.js v5 is still `5.0.0-beta.32`.** `latest` on npm is the v4 line. ADR-002 exists because
+   Prisma's `latest` tag once pointed at a release candidate and cost an afternoon; taking a beta
+   for the *authentication* dependency is a worse version of that bet.
+2. **Decisively: Auth.js's Credentials provider does not support database sessions.** It requires
+   the JWT strategy. That makes two of this phase's own acceptance criteria impossible without
+   fighting the library — *per-device revocation* and *"changing a password signs out every other
+   session"* — because a JWT cannot be withdrawn once issued. Phase 3 had already modelled a
+   `Session` table for exactly this.
+
+**Decision.** Opaque 256-bit random tokens in an httpOnly cookie, stored SHA-256-hashed, resolved
+against the `Session` table. Sliding 30-day expiry refreshed at most once a day. `sameSite=Lax`
+rather than `Strict`, so the click-through from a verification email does not look broken; every
+mutation is a POST through a Server Action, which carries its own origin check.
+
+**What is deliberately not reinvented.** Password hashing is scrypt from `node:crypto` (ADR-026) and
+token comparison is `timingSafeEqual`. The surface built here is session *storage*, not
+cryptography — which is the distinction that makes "do not roll your own auth" good advice rather
+than a blanket prohibition.
+
+**Consequences.** Per-device revocation, sign-out-everywhere and a real device list all work,
+because the session is a row that can be deleted. No beta dependency. The cost is roughly 200 lines
+to own and the loss of Auth.js's OAuth providers — which ADR-004 defers to Phase 16 anyway. Phase 3
+already shaped `Account` to Auth.js's schema, so adopting it for OAuth later needs no migration.
+
+**Revisit when:** Phase 16 adds Google OAuth, or Auth.js v5 reaches a stable release with
+database-session support for credentials.
+
+---
+
+## ADR-028 — Route gating is a convenience; the query is the boundary
+
+**Date:** 2026-09-09 · **Phase:** 4 · **Status:** Accepted
+
+**Context.** It is natural to think of `proxy.ts` as "the security layer" — it is the thing that sits
+in front of every request. That intuition is wrong in a way that ships silently.
+
+The proxy sees a request to a *route*. It cannot see a Server Action invoked directly, a route
+handler someone adds next month, or a query called from a component the guard does not wrap. All of
+those reach the data; none of them reach the proxy.
+
+**Decision.** Three layers, with an explicit ordering of trust:
+
+1. **`visibleTo(viewer)` in the query layer** — the actual boundary. Every scoped query composes it,
+   and a denied read returns `null` rather than a 403, because a 403 confirms the resource exists.
+2. **`can(viewer, action, resource)`** — the same rules for a single loaded row and for every write.
+   A denied write throws, because the user already knew the resource was there.
+3. **`proxy.ts`** — so a signed-out visitor lands on the sign-in page instead of a broken dashboard,
+   and returns to where they were going. Nothing more.
+
+`isolation.test.ts` tests layer 1 with the proxy entirely out of the picture, which is Phase 4's
+acceptance criterion 3 stated as a test. It also asserts that layers 1 and 2 **agree** on every
+seeded project for every viewer — they are written separately, one in SQL and one in TypeScript, and
+nothing else would stop them drifting. A drift in one direction leaks; in the other it produces
+mystery 404s on work people can legitimately see.
+
+**Consequences.** Guards can be added or forgotten without changing what data is reachable. New
+route handlers are safe by default because they cannot query without a viewer. The cost is that
+`visibleTo` and `can` express the same rule twice, in two languages — paid for by the agreement test.
+
+---
+
+## ADR-029 — There is no `viewer.role`
+
+**Date:** 2026-09-09 · **Phase:** 4 · **Status:** Accepted
+
+**Context.** Every authorisation system wants a `user.role` column. It makes `can()` a lookup table
+and every check a single comparison.
+
+It is wrong here, and wrong in a way that is expensive to undo. A person can be `ALUMNI` at the
+college they attended and `COMPANY` at the employer they now work for, simultaneously. A faculty
+member can hold a guest membership at a partner college (ADR-022). "What is this person's role" has
+no answer; only "what is their role *here*" does.
+
+**Decision.** `Viewer.memberships` is a list of `{ collegeId, role, state }`, and every check
+resolves against the membership relevant to the resource. There is deliberately no `viewer.role`,
+and `hasRoleAt(viewer, collegeId, role)` has no college-less variant to reach for.
+
+Faculty scope is narrower still: `viewer.teaches` is a list of classes, because a faculty member may
+read every project in **their subject**, not every project in the college. That distinction is most
+of what the permission matrix is for.
+
+**Consequences.** `can()` is longer than a lookup table and every call needs a resource to resolve
+against. In exchange, the alumni transition is a state change rather than a new account, guests
+cannot acquire college-wide reach, and the multi-college case works without a special path. The
+matrix test covers 100 role × action × scope combinations plus an exhaustive cross-college sweep, so
+the added complexity is checked rather than assumed.
+
+---
+
+## ADR-030 — A page swaps to the database when the phase that owns its data lands
+
+**Date:** 2026-09-09 · **Phase:** 5 · **Status:** Accepted
+
+**Context.** Twenty-eight pages import from `src/content/`. The Phase 3 hand-off note said Phase 5's
+"real job is the swap", which read as *all of them*. Doing that would mean building query modules
+for people, ideas, opportunities and knowledge ahead of the phases that design those models — the
+exact inversion the content-first architecture exists to avoid.
+
+Looking at the twenty-eight, they are not one kind of thing.
+
+**Decision.** Three categories, with an explicit rule for each.
+
+1. **Editorial content stays in `src/content/` permanently.** The changelog, the FAQ, the legal
+   documents, the knowledge articles, the feature and audience pages, pricing. Nobody administers
+   these through a console; they are written, reviewed and committed. Putting them in a database
+   would add a migration to every copy edit and buy nothing.
+
+2. **Database-backed pages swap in the phase that creates their data.** Colleges are created and
+   managed here, so `/colleges` and `/colleges/[slug]` swap here. Projects are created in Phases
+   7–8 and swap there. Profiles are edited in Phase 6 and swap there.
+
+3. **Nothing swaps ahead of its phase.** A page reading the database for data no interface can yet
+   create is a page that shows the seed and nothing else — the appearance of progress with none of
+   it.
+
+The rule that makes this safe: **no rendered page may change**. `npm run check:seo` crawls all 127
+URLs and asserts the whole per-page contract; it passed identically before and after this phase's
+swap, which is what turns "should be fine" into evidence.
+
+**Consequences.** The public site is temporarily mixed — colleges from the database, projects from
+fixtures. They agree today because the seed is generated from the fixtures, and `db:verify` asserts
+the anonymous query layer returns exactly the fixtures' public project set. That assertion is what
+keeps them agreeing until Phase 8 removes the need for it.
+
+The honest cost: until projects swap, granting a college verification changes its *college* page and
+sitemap entry, but its project pages are still governed by the fixture-side `resolveVisibility()`.
+In the seeded state both say the same thing. Phase 8 closes it.
+
+---
+
+## ADR-031 — The import dry run is computed twice, on purpose
+
+**Date:** 2026-09-09 · **Phase:** 5 · **Status:** Accepted
+
+**Context.** The Phase 5 spec is unambiguous: *"The dry-run preview is the single most important
+feature in this phase. A bulk import that silently creates 500 wrong records is the fastest way to
+lose a college's trust permanently, and it is unrecoverable without a restore."*
+
+That gives the preview two requirements that pull in opposite directions. It has to be **fast** —
+an administrator adjusting a column mapping should see the effect immediately, not after a round
+trip per change. And it has to be **true** — what the preview promises must be exactly what the
+commit does.
+
+**Decision.** Compute it twice.
+
+- **In the browser**, on every mapping change, for the preview. `planImport` is a pure function over
+  parsed rows and the existing roster, so this costs nothing: 500 rows plan in **9ms**.
+- **On the server**, from the same uploaded file, at commit. The client sends the CSV text and the
+  mapping — never the plan.
+
+Sending the plan would make the preview theatre: anything the browser can compute, the browser can
+be made to send something else instead, and "the preview said 3 creates" would stop being a
+statement about what the server will do.
+
+**Consequences.** One function, two callers, no duplicated logic — `lib/import/people.ts` has no
+database access at all, which is what makes "the dry run cannot write" true by construction rather
+than by discipline. The commit re-reads the roster, so a member added between preview and commit is
+handled correctly rather than double-created.
+
+Measured: parse 13ms, plan 9ms, commit 2.4s for 500 rows in one transaction — **2.9s against a
+10-second budget** (`npm run bench:import`, which rolls back so it can be run against the demo
+database).
+
+---
+
+## ADR-032 — Adapters carry the swap, not component rewrites
+
+**Date:** 2026-09-09 · **Phase:** 5 · **Status:** Accepted
+
+**Context.** The Phase 2 components take the types in `src/content/types.ts`. The database returns
+Prisma payloads. Swapping a page means reconciling the two, and there were two ways to do it.
+
+**Decision.** A thin adapter (`lib/db/queries/adapters.ts`) maps a database row into the shape the
+components already speak. The components are not touched.
+
+The alternative — rewriting `ProjectCard` and everything like it to take a Prisma payload — changes
+the components and the data source in the same commit. That is precisely the change nobody can
+review: if a page renders differently afterwards, nothing tells you which half did it.
+
+**Consequences.** `src/content/types.ts` keeps the role it has had since Phase 2, and gains a second
+one: it is now the contract in **both** directions — fixtures satisfy it, and so does the database.
+That is what lets `check:seo` compare a swapped page against the same expectations as before.
+
+The adapters are deliberately lossy in one direction: the content types carry exactly what the
+public site renders, so anything the database knows and no pixel depends on is dropped rather than
+threaded through. A listing that needed the extra field would widen its `select`; today none does.
+
+The cost is one more hop, and the risk that an adapter quietly fills a field with a default the page
+then displays. Both are bounded by the fact that the adapters exist only for pages that have already
+been swapped, and `check:seo` renders every one of them.
+
+---
+
+## ADR-033 — Privacy is enforced by not querying, not by not rendering
+
+**Date:** 2026-09-09 · **Phase:** 6 · **Status:** Accepted
+
+**Context.** The obvious way to build a profile page with per-field privacy is one query for
+everything and a filter in the view. It is shorter, and it is wrong in a way that does not show up
+until somebody looks at the page source.
+
+A field that is fetched and not rendered is still in the RSC payload. A field that is fetched and
+CSS-hidden is in the HTML. Both defeat "hidden" for a crawler, for `curl`, and for anyone who
+presses `Ctrl+U` — and Phase 6's own note says so: *"Hidden must mean absent from the HTML. Filter
+at the query, not at the view."*
+
+**Decision.** The visibility decision happens **before** the select, and an unentitled field is
+never read from the database at all.
+
+`resolveProfileVisibility()` reads only what it needs to decide — the privacy row, the memberships,
+the college verification — and returns null when the viewer may not see the profile. `getProfile()`
+then issues the entitled reads as **separate queries**, run only when permitted.
+
+Separate queries rather than conditional spreads inside one `select`, for two reasons, and the
+second is what settled it:
+
+- It makes the guarantee literal. An unentitled field is not fetched, so no future edit to the page
+  can surface it by accident.
+- **Prisma cannot infer a conditionally-spread select.** The first version compiled to the *full*
+  model type — precisely the shape that invites somebody to render a field the query was supposed to
+  withhold.
+
+**Consequences.** Two or three small indexed queries instead of one, which is a cheap price for a
+privacy rule that holds by construction. Asserted at both layers: `profile.test.ts` checks the query
+result, and `npm run check:privacy` fetches the real page logged out and asserts the email and roll
+number are absent from the bytes.
+
+---
+
+## ADR-034 — A private profile is indistinguishable from one that does not exist
+
+**Date:** 2026-09-09 · **Phase:** 6 · **Status:** Accepted
+
+**Context.** The natural design is a 404 for an unknown username and a "this profile is private"
+page for a real one. That is friendlier, and it is a username enumeration oracle: an attacker walks
+a list of plausible handles and learns which are real accounts at a named institution.
+
+**Decision.** Both render the same page, with the same title, the same `noindex`, the same body and
+the same status. `getProfile()` returns null for either, and the page cannot tell which happened.
+
+The page says so honestly rather than pretending to be an error: *"Profiles on Nexivora are private
+until someone chooses otherwise… There may be no account with this name at all."* That is true in
+both cases, which is the point.
+
+**Verified, including one thing that looked like a leak and was not.** Response *sizes* differ
+between the two by around 1.2 KB, which initially read as an oracle. It is not: requesting the
+**same** URL twice produces different sizes too, for existing and non-existing names alike. Next
+streams metadata and the position it lands in varies per request. `check:privacy` therefore compares
+the rendered content — title, robots directive, body — and deliberately **does not** compare byte
+counts, with a comment saying why, so nobody re-adds that assertion and chases a phantom.
+
+**Consequences.** Slightly worse ergonomics for someone who mistyped their friend's handle. That is
+the correct trade for a platform whose accounts are students at a named college.
+
+---
+
+## ADR-035 — Inferred skills are derived from projects, and the difference is shown
+
+**Date:** 2026-09-09 · **Phase:** 6 · **Status:** Accepted
+
+**Context.** A self-declared skill list is a CV, and everybody's CV says React. It is also the
+easiest thing to build, and the thing every competitor already has.
+
+`docs/phases/phase-06` is blunt about the stakes: *"The skill graph is the feature that makes
+profiles credible… Do not let the self-declared path dominate the UI."*
+
+**Decision.** `lib/skills/infer.ts` derives skills from what somebody actually built — the project's
+tech stack, its domain, their declared role on it, and the tasks they closed — and every inferred
+skill carries **the projects that produced it, by name**.
+
+Three rules make it honest rather than generous:
+
+- **Drafts do not count.** Only `IN_PROGRESS`, `UNDER_REVIEW`, `COMPLETED` and `ARCHIVED` are
+  evidence. Counting a draft would let anybody manufacture a skill by creating an empty project,
+  which is the exact inflation the three-tier proof model exists to prevent.
+- **Stack noise is dropped.** `JSON`, `Git`, `CSV` say nothing about a person, and a list of twenty
+  skills communicates less than a list of six.
+- **Strength is 1–4 and means "how much evidence", not "how good".** Claiming to measure ability
+  from three project rows would be dishonest, and the number would be believed.
+
+`mergeSkills()` **promotes** a claim the projects corroborate and keeps an uncorroborated one,
+clearly marked and sorted below. An attestation outranks both — a named human signed it.
+
+Recomputed on project state change and after a skill edit, **never on render**: it is a join-heavy
+query and would land on the profile page's LCP.
+
+**Consequences.** The skill section is shorter than a CV's and means more. `infer.test.ts` runs the
+inference over the real seeded corpus, and asserts the properties that matter: that a draft yields
+nothing, that two different roles on the same project infer different skills, and that the ordering
+is stable so the list does not reshuffle on reload.
+
+The honest limit: the inference is a heuristic over a small rule set. It will miss skills and
+occasionally suggest a vague one. That is why nothing is auto-attested, and why the interface never
+presents a claim and a piece of evidence identically.
+
+---
+
+## ADR-036 — Discussion is markdown-lite through the existing renderer, not Tiptap
+
+**Status.** Accepted · Phase 7 · 2026-09-10
+
+**Context.** The Phase 7 spec says *"Rich text via Tiptap, sanitised on the server before storage and
+again at render"*, and `docs/SECURITY.md` §3 says the same. Both were written in Phase 0, before
+Phase 2 built `components/content/rich-text.tsx`.
+
+That renderer changes the calculation. It parses a small markdown grammar and emits **React
+elements** — there is no `dangerouslySetInnerHTML` anywhere in it, by construction. Phase 2 removed
+the one instance that had crept into the pricing page for bold text, and recorded why: not because
+it was exploitable on our own content, but because it is a pattern that gets copied somewhere it
+would be.
+
+**Decision.** Thread bodies, replies and task comments are stored as plain text and rendered through
+`RichText`. No Tiptap, no `isomorphic-dompurify`, no sanitiser.
+
+The reasoning is that a sanitiser is a mitigation for an HTML path, and we do not have one. Adding
+Tiptap would *create* the HTML path — it produces an HTML string — and then require a sanitiser to
+close the hole it opened, plus a second sanitiser at render because the first cannot be trusted for
+content already in the database. Two libraries, two failure modes, and a class of bug that currently
+cannot exist.
+
+The trade is real and it is a downgrade in one respect: no toolbar, no inline images, no tables in a
+discussion reply. Students type `**bold**` or they do not.
+
+**Consequences.**
+
+- Three fewer dependencies (`@tiptap/core`, `@tiptap/starter-kit`, `isomorphic-dompurify`) and no
+  editor bundle on a page whose job is reading.
+- One renderer for project sections, thread bodies, replies and task comments — so a fix to the
+  renderer fixes all four.
+- **`docs/SECURITY.md` §3 is now wrong in its first two bullets.** It has been corrected rather than
+  left to mislead the next person into installing a sanitiser for a threat that is not present.
+- If a future phase genuinely needs rich authoring — a project report with embedded figures is the
+  plausible case — this decision is revisited *there*, with the sanitiser, and the discussion
+  surface stays as it is.
+
+---
+
+## ADR-037 — Chart colours are a separate, CVD-validated set from the domain palette
+
+**Status.** Accepted · Phase 7 · 2026-09-10
+
+**Context.** Phase 1 shipped an eight-colour "domain / topic categorical set", contrast-checked and
+wired into `npm run check:contrast`. Building the ledger's contribution chart, the obvious move was
+to reuse it.
+
+Measuring first showed why that would have been wrong. `check-contrast.mjs` asks *"can this colour
+be read against that surface"* — the right question for a badge. A chart asks a different one:
+*"can these two marks be told apart from each other"*, including by the roughly one man in twelve
+with a colour-vision deficiency. The domain set fails it: crimson `#be123c` against amber `#b45309`
+separates by **ΔE 5.7 under deuteranopia**, against a target of 8. Both pass contrast. Neither
+looked wrong to me on screen.
+
+The dark variants fail differently and more completely: every one sits at OKLCH lightness 0.78–0.88,
+above the 0.48–0.67 band a chart mark needs on a dark surface. They were tuned to be readable *as
+text* on dark, which is a different job.
+
+**Decision.** A separate six-slot `--color-series-*` set, with its own steps per theme, validated by
+a committed script (`npm run check:chart-palette`) wired into `npm run check`. Worst adjacent pair:
+**ΔE 21.0 light, 19.3 dark**.
+
+Six and not eight, because six is where it stops being achievable. And **adjacent** pairs, not all
+pairs: we searched the space and no six-slot set clears the all-pairs target inside the dark band —
+the best found reaches 6.3. So any chart with more than a couple of series uses **small multiples
+with a name beside each facet**, and colour reinforces identity rather than carrying it.
+
+**Consequences.**
+
+- The ledger's contribution timeline is one row per member rather than six overlaid lines. It reads
+  better anyway: "who was carrying this, and from when" is easier stacked than overlaid.
+- The domain palette is unchanged. It is used for badges and topic chips, where it is correct.
+- The audit also asserts the two dark blocks — the `prefers-color-scheme` media query and
+  `[data-theme="dark"]` — declare the same six steps. A theme that disagrees with itself depending
+  on how it was selected is a bug that only appears on somebody else's machine.
+
+---
+
+## ADR-038 — The ledger has no update path, enforced by the type system
+
+**Status.** Accepted · Phase 7 · 2026-09-10
+
+**Context.** ADR-007 established that the contribution ledger is append-only and that events are
+written in the same transaction as the action that produced them. Phase 7 had to make that true in
+code rather than in a comment.
+
+Acceptance criterion 8 states it as a testable property: *"attempting an update through the client
+wrapper is a type error."*
+
+**Decision.** `lib/ledger/record.ts` exports `recordLedgerEvent`, `recordLedgerEvents` and
+`compensateLedgerEvent`, and nothing else. There is no update, no delete, and no overload that
+accepts the global Prisma client.
+
+The transaction requirement is carried by the parameter type. `Tx` is
+`Omit<PrismaClient, "$transaction" | …>` — the shape of an *interactive transaction client*, which
+is missing `$transaction` precisely because you are already inside one. `db` does not satisfy it, so
+`recordLedgerEvent(db, …)` does not compile, and the only way to obtain a value of that type is
+`db.$transaction(async (tx) => …)`.
+
+Corrections are compensating events: a second row with a **negative** weight pointing at the same
+subject. Reopening a closed task, trashing an uploaded file and deleting a done task all take this
+path.
+
+**Consequences.**
+
+- "Closed on Tuesday, reopened on Wednesday" stays readable. An update would have destroyed it.
+- `scoreMembers` floors a member's total at zero, so double compensation cannot produce a negative
+  share — asserted directly, because the arithmetic otherwise permits it.
+- The activity stream shows a withdrawal struck through rather than hiding it. Hiding it would make
+  the stream disagree with the totals, and somebody would eventually notice and trust neither.
+- The cost is that a genuine mistake — crediting the wrong member — cannot be erased, only offset.
+  That is the same trade the audit log makes, for the same reason.
+
+---
+
+## ADR-039 — Drag-and-drop is an enhancement over a keyboard control, not the other way round
+
+**Status.** Accepted · Phase 7 · 2026-09-10
+
+**Context.** A task board wants dragging. The two obvious routes are a library (`dnd-kit`,
+`react-beautiful-dnd`) or the native HTML5 drag events, and both leave the same question unanswered:
+what does a keyboard user do? Acceptance criterion 3 requires the board to be *fully operable by
+keyboard, with no drag interaction, start to finish*.
+
+**Decision.** Build the **"Move to" menu first** and treat dragging as an enhancement layered over
+it. Every card carries a real `<button aria-haspopup="menu">` whose items call exactly the same
+handler a drop calls.
+
+Two things follow, and the second is the one that made the decision:
+
+- Accessibility is not retrofitted. The keyboard path is the primary path, so it cannot rot.
+- **No drag library is needed at all.** The native events are ~20 lines on top of a control that
+  already works, where a library would have been the largest dependency in the product and would
+  still have needed the menu built beside it.
+
+Moves are optimistic via `useOptimistic`, and a failure surfaces a toast naming the task and the
+reason. A card that silently snaps back is the most confusing thing an optimistic interface can do.
+
+**Consequences.**
+
+- Measured in a real browser: **66ms** from keypress to the card appearing in its new column, and
+  the move reconciles rather than reverting on reload. `npm run check:workspace` asserts both.
+- The board works on a phone, where dragging is awkward, and with a screen reader, where it is
+  meaningless.
+- The check drives the menu with `data-task-menu` / `data-column` / `data-move-to` hooks rather than
+  guessing at roles — the first version selected on `aria-haspopup=menu` and matched the header's
+  **theme toggle**, reporting a pass against a control with nothing to do with the board.
+
+---
+
+## ADR-040 — The seed writes real file bytes, not just file rows
+
+**Status.** Accepted · Phase 7 · 2026-09-10
+
+**Context.** Phase 3's seed created 90 `FileAsset` rows with generated storage keys and plausible
+random sizes. It wrote nothing to disk.
+
+Nobody noticed for four phases, because nothing served a file until this one. The first run of
+`npm run check:workspace` did, and its **positive control** — *"a member can fetch their own group's
+file"* — failed with a 404. The route was behaving perfectly: a missing object is a 404. The demo
+world was the thing that was wrong.
+
+**Decision.** `prisma/seed/files.ts` writes a real object for every seeded storage key, including
+every `FileVersion` key, and the row's `sizeBytes` is set from what was actually written.
+
+The content is generated and small, but it is genuinely of its claimed type: a real `%PDF-` header,
+real CSV rows, a hand-built ZIP with a **computed CRC-32**. That last one is not fastidiousness —
+the upload path identifies ZIP-family files by their signature, and a demo whose own files would
+fail our own validator is a trap for whoever next tests uploading using a seeded file as an example.
+
+**Consequences.**
+
+- 134 objects, 233 KB, written in the seed's existing budget. `.uploads/` is already gitignored.
+- Acceptance criterion 5 is now testable against real data. Before this, *"a file returns 404 to
+  somebody outside the group"* passed trivially, because it returned 404 to everybody.
+- The quota bar and the file list agree with the disk, because the sizes come from it.
+- **The general lesson, which cost the most time here:** a denial suite without a positive control
+  proves nothing (process lesson 9). This is the second time that rule has earned its place, and the
+  first time it caught a defect in the *fixture* rather than in the policy.

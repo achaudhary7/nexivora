@@ -83,7 +83,19 @@ async function checkPage(url) {
   const html = await res.text();
 
   /* ---- title ---------------------------------------------------------- */
-  const rawTitle = attr(html, /<title>([^<]*)<\/title>/);
+
+  /*
+   * Inline SVGs carry their own `<title>` for accessibility — "Cover image
+   * for …" on every project card — and Next streams metadata, so in the raw
+   * response those can arrive *before* the document title. Matching the first
+   * `<title>` in the byte stream therefore reports an image's alt text as the
+   * page title, which looked like a 63-character title on a profile page whose
+   * real title is 20.
+   *
+   * Strip SVG content first. The document title is the one outside them.
+   */
+  const withoutSvg = html.replace(/<svg[\s\S]*?<\/svg>/gi, "");
+  const rawTitle = attr(withoutSvg, /<title>([^<]*)<\/title>/);
   if (!rawTitle) {
     fail(path, "no <title>");
   } else {

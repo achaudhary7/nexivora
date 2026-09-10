@@ -15,11 +15,19 @@ import { z } from "zod";
 const serverSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
-  /** Postgres. Required from Phase 3 onward; optional until then. */
+  /**
+   * Postgres. Required as of Phase 3 — the schema, the seed and every query
+   * depend on it, so a missing value should fail the boot rather than surface
+   * as a null client three screens in. `npm run db:up` provisions it locally
+   * with nothing to install (ADR-021).
+   */
   DATABASE_URL: z
     .string()
-    .url("DATABASE_URL must be a valid postgresql:// connection string")
-    .optional(),
+    .url("DATABASE_URL must be a valid postgresql:// connection string — run: npm run db:up")
+    .startsWith(
+      "postgresql://",
+      "DATABASE_URL must be a postgresql:// URL (not SQLite — see ADR-003)",
+    ),
 
   /** Auth.js. Required from Phase 4 onward. */
   AUTH_SECRET: z
@@ -69,8 +77,28 @@ const clientSchema = z.object({
   NEXT_PUBLIC_SITE_URL: z.string().url().default("http://localhost:3000"),
 });
 
+/**
+ * Treat an empty variable as unset.
+ *
+ * `.env` files cannot express "absent" — `AUTH_SECRET=` loads as `""`, not as
+ * undefined. Without this, copying `.env.example` and filling in only the
+ * variables the current phase needs fails the boot on a later phase's blank
+ * line, with an error about a variable the developer was right to leave empty.
+ * Zod's `.optional()` accepts undefined, not `""`, so the normalisation has to
+ * happen before parsing.
+ */
+function withoutBlanks(input: NodeJS.ProcessEnv | Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== "" && value !== undefined),
+  );
+}
+
 function parseOrDie<T extends z.ZodType>(schema: T, input: unknown, label: string): z.infer<T> {
-  const result = schema.safeParse(input);
+  const result = schema.safeParse(
+    typeof input === "object" && input !== null
+      ? withoutBlanks(input as Record<string, unknown>)
+      : input,
+  );
 
   if (!result.success) {
     const issues = result.error.issues

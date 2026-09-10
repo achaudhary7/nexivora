@@ -9,6 +9,53 @@
 | **Started** | — |
 | **Completed** | — |
 
+## What Phase 3 already provides
+
+*Added 2026-09-09, when Phase 3 completed. Check these before building — the most common way to
+waste a phase is to rebuild something the previous one shipped.*
+
+- **`Rubric`, `RubricCriterion`, `Evaluation`, `CriterionScore`, `Feedback`,
+  `Attestation` and `PeerReview` are modelled and seeded** — one rubric, 12 evaluations, 28 peer
+  reviews, 8 attestations including one revoked.
+- **`CriterionScore.memberId` is null for the group score and set for a per-member score**, with a
+  `reason` required when a member deviates. The ledger exists precisely so those can differ.
+- **Peer review is one-directional** (ADR-008): a member sees only the aggregate about themselves,
+  never who said what. Faculty see the detail.
+- **Rubrics are versioned, never edited.** An edited rubric that retroactively changes past
+  evaluations is a serious academic integrity problem.
+- **The disengagement signal's thresholds are in `src/config/ledger.ts`.** It is shown to faculty
+  only, and never as an accusation — its job is to prompt someone to ask.
+
+## What Phase 6 already provides
+
+*Added 2026-09-09, when Phase 6 completed.*
+
+- **Only this phase may write `UserSkill.source = "ATTESTED"`.** `recomputeSkills` never
+  overwrites an attestation, and the profile forms cannot edit one — a named human signed it, so
+  only they can withdraw it.
+- **`mergeSkills()` already ranks attested above evidenced above claimed.** Issuing an attestation
+  is all this phase needs to do; the display follows.
+
+## What Phase 7 already provides
+
+*Added 2026-09-10, when Phase 7 completed.*
+
+- **`groupHealth()` in `lib/ledger/health.ts` is built and unit-tested** — silent members, low
+  contribution share, slipped milestones, a stalled board. It is written to be shown to **faculty
+  and never to the group**, it refuses to fire below `HEALTH_SIGNAL_MIN_EVENTS`, and every message
+  states what the data shows without concluding anything. `healthLevel()` collapses the signals to
+  one badge for a list.
+- **Peer review detail is already faculty-scoped.** `getReviews(workspace, { teachesSubject: true })`
+  returns every review with its author; the member view returns an aggregate with authorship
+  stripped. That asymmetry is ADR-008 and it is enforced **at the query** — do not re-filter in a
+  component, and never repeat an attributed comment back to a group.
+- **Faculty already read the workspace** (`workspace:read` via `teachesSubject`) and may write
+  tasks — but **cannot edit sections and cannot delete files**, deliberately. A supervisor who can
+  silently alter a group's work destroys the evidentiary value of the ledger.
+- **`scoreMembers()` and `contributionTimeline()` are pure functions** over ledger rows. Reuse
+  them; the faculty view is a different presentation of the same numbers, not a different
+  calculation.
+
 ## Objective
 
 Build the surface that determines whether this product is adopted at all. **Faculty are the

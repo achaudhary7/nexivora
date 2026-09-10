@@ -34,7 +34,10 @@ Nexivora is **project-first**, not person-first. Four things nobody else builds:
 
 ## Status
 
-**Phase 0 of 20.** Planning complete; implementation beginning.
+**Phase 7 of 20 complete.** The public site (127 indexable pages), the schema and demo world, auth
+and RBAC, the institution backbone, profiles, and the **group workspace with the Contribution
+Ledger** — the differentiator. Next: Phase 8, the project record itself.
+
 Live status board: [`PROGRESS.md`](PROGRESS.md).
 
 ---
@@ -76,7 +79,8 @@ in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)).
 cd app
 npm install
 cp .env.example .env          # fill in DATABASE_URL and AUTH_SECRET
-npm run db:reset              # migrate + seed the demo college
+npm run db:reset              # migrate + seed the demo college (~3.4s)
+npm run db:verify             # 26 integrity assertions over the seeded data
 npm run dev                   # http://localhost:3000
 ```
 
@@ -84,7 +88,15 @@ Two commands worth knowing:
 
 ```bash
 npm run db:reset    # rebuild the demo world from scratch
-npm run check       # typecheck + lint + format + contrast audit + SEO contract
+npm run db:verify   # assert the data is actually coherent
+npm run test        # unit tests (node --test, no framework)
+npm run check:auth  # sign-in, gating and sign-out in a real browser
+npm run check:admin # the admin console, end to end
+npm run check:privacy # profile privacy, asserted on the bytes a stranger receives
+npm run check:workspace # the workspace in a real browser — the board BY KEYBOARD, files, ledger
+npm run check:seo   # crawls the sitemap and asserts the whole per-page SEO contract
+npm run bench:import # 500-row import against the 10s budget (rolls back)
+npm run check       # typecheck + lint + format + test + contrast + chart-palette audits
 ```
 
 ---

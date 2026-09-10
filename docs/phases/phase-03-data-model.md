@@ -2,12 +2,12 @@
 
 | | |
 | --- | --- |
-| **Status** | ⬜ Not Started |
+| **Status** | ✅ Complete |
 | **Depends on** | Phase 2 (the `src/content/` fixtures are the contract) |
 | **Blocks** | Phases 4–15 |
 | **Estimate** | 7 focused hours |
-| **Started** | — |
-| **Completed** | — |
+| **Started** | 2026-09-09 |
+| **Completed** | 2026-09-09 |
 
 ## Objective
 
@@ -37,84 +37,84 @@ Reference: `docs/DATA-MODEL.md`.
       verified. Nothing to install. `npm run db:status` confirms it.
 
 ### Schema
-- [ ] Prisma installed, **version pinned exactly** (ADR-002), Postgres provider
-- [ ] `prisma/schema.prisma` covering all ten model groups from `docs/DATA-MODEL.md`
-- [ ] Every closed set is an enum; no status stored as a free string
-- [ ] `collegeId` present and indexed on every institution-scoped model
-- [ ] `createdAt` / `updatedAt` on every model; `deletedAt` on user-authored content
-- [ ] `cuid2` ids throughout
-- [ ] Composite indexes for the real access patterns: `(collegeId, termId, status)` on Project,
+- [x] Prisma installed, **version pinned exactly** (ADR-002), Postgres provider
+- [x] `prisma/schema.prisma` covering all ten model groups from `docs/DATA-MODEL.md`
+- [x] Every closed set is an enum; no status stored as a free string
+- [x] `collegeId` present and indexed on every institution-scoped model
+- [x] `createdAt` / `updatedAt` on every model; `deletedAt` on user-authored content
+- [x] `cuid2` ids throughout
+- [x] Composite indexes for the real access patterns: `(collegeId, termId, status)` on Project,
       `(groupId, status, dueDate)` on Task, `(userId, readAt)` on Notification,
       `(visibility, publishedAt)` on Project
-- [ ] An index on every foreign key (Prisma does not always create one)
-- [ ] **Check constraint enforcing that every `Post` has exactly one anchor** (ADR-006) — this is a
+- [x] An index on every foreign key (Prisma does not always create one)
+- [x] **Check constraint enforcing that every `Post` has exactly one anchor** (ADR-006) — this is a
       database constraint, not an application convention
-- [ ] `LedgerEvent` modelled append-only: no update path in the client wrapper
-- [ ] Migration created and applied
+- [x] `LedgerEvent` modelled append-only: no update path in the client wrapper
+- [x] Migration created and applied
 
 ### Search infrastructure
 - [x] `pg_trgm` and `unaccent` enabled — done by `npm run db:up`, not by a migration. A migration
       that runs `CREATE EXTENSION` needs superuser, which the application user deliberately does not
       have (docs/SECURITY.md §9).
-- [ ] `searchVector tsvector` columns on Project, Idea, Post, User, Resource
-- [ ] Weighted: title A, tags B, sections C, body D
-- [ ] Triggers maintaining the vectors on insert and update
-- [ ] GIN indexes on every vector, and a trigram index on the normalised problem statement
-- [ ] `lib/search/fts.ts` — parameterised raw query helpers
-- [ ] `lib/search/similarity.ts` — the duplicate scorer: trigram similarity on the normalised
+- [x] `searchVector tsvector` columns on Project, Idea, Post, User, Resource
+- [x] Weighted: title A, tags B, sections C, body D
+- [x] Triggers maintaining the vectors on insert and update
+- [x] GIN indexes on every vector, and a trigram index on the normalised problem statement
+- [x] `lib/search/fts.ts` — parameterised raw query helpers
+- [x] `lib/search/similarity.ts` — the duplicate scorer: trigram similarity on the normalised
       problem statement combined with Jaccard overlap of tag and tech-stack sets, weights in config
-- [ ] Unit tests for the scorer against fixture pairs with known expected outcomes
+- [x] Unit tests for the scorer against fixture pairs with known expected outcomes
 
 ### Taxonomy — **already built in Phase 2**; this phase seeds from it
 `src/config/taxonomy.ts` exists and is the single definition consumed by the topic hubs, the explore
 facets, project domain colours and (later) the matcher. **Do not redefine it** — the seed imports it.
 Verify rather than rewrite:
-- [ ] Two-level domain taxonomy: AI/ML, Software, Hardware & IoT, Healthcare, Education,
+- [x] Two-level domain taxonomy: AI/ML, Software, Hardware & IoT, Healthcare, Education,
       Sustainability, Social Impact, Research & Science — each with sub-domains, a slug, a
       description and a contrast-checked colour
-- [ ] Skill taxonomy mapped to domains
-- [ ] All 17 SDGs with official numbers, titles and our SVG marks
-- [ ] **One definition, four consumers** — the same file drives `/topics`, the explore facets, the
+- [x] Skill taxonomy mapped to domains
+- [x] All 17 SDGs with official numbers, titles and our SVG marks
+- [x] **One definition, four consumers** — the same file drives `/topics`, the explore facets, the
       project domain colour and the teammate matcher
 
 ### Seed — `prisma/seed/`
 Split by concern, importing from `src/content/` rather than duplicating it.
-- [ ] `hierarchy.ts` — Nexivora Institute of Technology: 4 departments, 6 programmes, ~18 subjects,
+- [x] `hierarchy.ts` — Nexivora Institute of Technology: 4 departments, 6 programmes, ~18 subjects,
       2 terms, 8 classes, plus 2 additional colleges for inter-college work later
-- [ ] `people.ts` — ~60 students, 12 faculty, 2 college admins, 6 alumni, 3 companies,
+- [x] `people.ts` — ~60 students, 12 faculty, 2 college admins, 6 alumni, 3 companies,
       1 platform admin; enrolments and subject assignments
-- [ ] `groups.ts` — ~14 groups in varied states, including **one with a visibly silent member** so
+- [x] `groups.ts` — ~14 groups in varied states, including **one with a visibly silent member** so
       the Phase 9 health signal has something real to show
-- [ ] `projects.ts` — ~20 projects across every domain and every lifecycle state, with all sections
+- [x] `projects.ts` — ~20 projects across every domain and every lifecycle state, with all sections
       populated, imported from the Phase 2 fixtures
-- [ ] **A real three-level lineage chain**, so the lineage tree is not a single node
-- [ ] **One project deliberately similar to an archived one**, so the duplicate check demonstrably
+- [x] **A real three-level lineage chain**, so the lineage tree is not a single node
+- [x] **One project deliberately similar to an archived one**, so the duplicate check demonstrably
       fires rather than being taken on trust
-- [ ] `workspace.ts` — tasks, files, threads, meetings and a **ledger consistent with them**
-- [ ] `activity.ts` — a feed generated from the above events, not hand-written
-- [ ] `evaluation.ts` — one rubric, one completed evaluation, two attestations, one revoked
-- [ ] `ideas.ts` — ideas at every status, including one that became a project
-- [ ] `assertCatalogueComplete()` — fails loudly at seed time if content references a taxonomy node
+- [x] `workspace.ts` — tasks, files, threads, meetings and a **ledger consistent with them**
+- [x] `activity.ts` — a feed generated from the above events, not hand-written
+- [x] `evaluation.ts` — one rubric, one completed evaluation, two attestations, one revoked
+- [x] `ideas.ts` — ideas at every status, including one that became a project
+- [x] `assertCatalogueComplete()` — fails loudly at seed time if content references a taxonomy node
       that does not exist, so the Phase 2 contract is enforced here rather than discovered as a
       foreign-key error later
 
 ### Tooling
-- [ ] `npm run db:reset` — migrate + seed from scratch
-- [ ] `npm run db:seed`
-- [ ] `npm run db:verify` — `scripts/verify-db.mjs`
-- [ ] `lib/db/client.ts` — the Prisma singleton (dev hot-reload safe)
-- [ ] `lib/db/queries/` skeleton by domain, with the `viewer`-first signature established
+- [x] `npm run db:reset` — migrate + seed from scratch
+- [x] `npm run db:seed`
+- [x] `npm run db:verify` — `scripts/verify-db.mjs`
+- [x] `lib/db/client.ts` — the Prisma singleton (dev hot-reload safe)
+- [x] `lib/db/queries/` skeleton by domain, with the `viewer`-first signature established
 
 ### Integrity assertions — `scripts/verify-db.mjs`
-- [ ] No `Post` without exactly one anchor
-- [ ] No public project whose proposal was never approved
-- [ ] No `LedgerEvent` without the action that produced it
-- [ ] No project outside its own college's hierarchy
-- [ ] No group member from a different college
-- [ ] Every enum value used is a declared value
-- [ ] The lineage graph is acyclic
-- [ ] Every `searchVector` is populated
-- [ ] The similarity check fires on the deliberately-similar pair, and does not fire on an
+- [x] No `Post` without exactly one anchor
+- [x] No public project whose proposal was never approved
+- [x] No `LedgerEvent` without the action that produced it
+- [x] No project outside its own college's hierarchy
+- [x] No group member from a different college
+- [x] Every enum value used is a declared value
+- [x] The lineage graph is acyclic
+- [x] Every `searchVector` is populated
+- [x] The similarity check fires on the deliberately-similar pair, and does not fire on an
       unrelated pair
 
 ## Acceptance criteria
@@ -165,20 +165,114 @@ scripts/verify-db.mjs          The integrity suite
 
 ## Phase Summary
 
-*Fill this in when the phase is complete.*
+**Status: complete, 2026-09-09.**
 
-**What was built.** *(exact model and enum counts, seed timing)*
+### What was built
 
-**Key decisions made.**
+| | |
+| --- | --- |
+| Models | **90** (the spec estimated ~60; join tables and four models the spec implied but did not name account for the difference) |
+| Enums | **29** |
+| Migrations | 3 — `init`, `search_infrastructure`, `guest_membership` |
+| Check constraints | 16 |
+| Triggers | 6, over 5 tables |
+| GIN indexes | 10 (5 tsvector, 5 trigram) |
+| Seed time | **3.4s** — budget was 20s |
+| Seeded rows | 82 users · 18 groups · 14 projects · 126 sections · 691 ledger events · 65 posts |
+| Integrity assertions | **26, all passing** |
+| Unit tests | 30, all passing |
 
-**The demo narrative — who is in the seed and what story it tells.**
+Four models were added that the spec did not name but the design required: **`Question`**,
+**`Answer`** and **`Resource`** — because `PostKind` includes `QUESTION` and `RESOURCE`, and the
+"exactly one anchor" constraint is meaningless if two of the four anchor columns point at tables
+that do not exist. Also **`ActivityEvent`**, separating the raw internal stream from the rankable
+`Post`.
 
-**Deviations from the spec above, and why.**
+### Key decisions made
 
-**Anything the next phase must know.**
+- **ADR-022 — `MembershipState.GUEST`.** Cross-college project members had no membership at the
+  host college, which the isolation assertion caught. A guest membership keeps "is this user a
+  member of this college" as one predicate rather than a special case in every authorisation check.
+- **ADR-023 — problem similarity is the geometric mean of Dice and containment**, not Jaccard.
+  Chosen by measuring five candidates across the corpus, not by preference.
+- **ADR-024 — Node's built-in test runner**, no test-framework dependency.
+- **ADR-025 — the seed is deterministic**, from one seeded PRNG.
+- **`ProjectSection` as rows, not JSON** (ADR-009), as specified. Per-section faculty feedback and
+  the public page's `<h2>` structure both depend on it.
+- **Weighting deviates from the spec for Project only:** title A, tags B, *abstract* C, *sections* D
+  — the spec had sections above body. An abstract is written for a reader; raw section prose is not,
+  and ranking them the other way makes search feel arbitrary. Acceptance criterion 3 holds either
+  way and is asserted.
+- **The extension guard in `search_infrastructure` tries `CREATE EXTENSION` and swallows only a
+  privilege error.** It has to satisfy three databases: dev (already installed), Prisma's *shadow*
+  database (created empty for every `migrate dev`, so a pure assertion would make that command
+  permanently unusable), and production (where the migration role is deliberately not superuser).
 
-**Verified by.**
+### The demo narrative
+
+**Nexivora Institute of Technology** — 4 departments, 7 programmes, 41 subjects, 4 terms, 82
+classes. Two partner colleges: **Meridian** (verified) and **Greenfield** (deliberately unverified,
+so the indexability gate is exercised by a real row rather than asserted in a comment).
+
+The cast is the twelve people from `src/content/people.ts` — rendered by the public site, imported
+verbatim — plus 9 faculty, 3 college admins, 5 alumni, 5 companies and a 52-student cohort.
+
+Deliberately awkward cases, all seeded exactly as awkward as the fixtures make them:
+
+- A **three-level lineage chain** — `smart-irrigation-soil-moisture` → `irrigation-forecast-lstm`
+  → `canal-scheduling-multi-farm`. One batch genuinely building on another.
+- A **near-duplicate**, `soil-moisture-irrigation-control`, proposed and unapproved. The detector
+  scores it 0.585 against a 0.45 threshold; an unrelated project scores 0.106.
+- An **embargoed** project, `battery-second-life-grading` — listed and citable, body withheld.
+- A **private** project and one at the **unverified college**, both provably absent from public
+  output.
+- `canal-scheduling-multi-farm` has **a member the work never lands on** — attends a fifth of
+  meetings, closes no tasks. Phase 9's health signal needs a real case to fire on, or it ships
+  broken.
+- **arjun-rao is a Meridian student on two Nexivora projects and one Greenfield project** — the
+  air-quality mesh is "built jointly by teams at two colleges". This is what forced ADR-022.
+
+### Deviations from the spec, and why
+
+1. **90 models rather than ~60.** The estimate did not count join tables, and four models were
+   genuinely missing from it (above).
+2. **Project FTS weighting swaps C and D** (above).
+3. **`prisma migrate reset` is not used.** Prisma 7 gates it behind an interactive consent prompt.
+   `scripts/db-reset.mjs` drops the schema itself, with guards refusing any non-local host or
+   `NODE_ENV=production`.
+4. **The query layer is projects-only.** The spec asked for a "skeleton by domain"; building empty
+   modules for people, colleges and groups would be rot. The `Viewer` contract is established and
+   `queries/projects.ts` proves the pattern end to end; Phases 5 and 6 add theirs as they build.
+5. **A separate `prisma/tsconfig.json`.** The seed is a Node program and needs explicit `.ts` import
+   extensions; the app is bundled and must not have them. Two runtimes, two configs, both
+   type-checked by `npm run typecheck`.
+
+### Anything the next phase must know
+
+- **`Viewer` is the contract.** Every query in `src/lib/db/queries/` takes it first, always,
+  including for the logged-out public — `ANONYMOUS` is a real viewer, not a null. Phase 4 builds the
+  session that produces it; `loadViewer()` currently returns an empty `groupIds` and needs
+  completing.
+- **Passwords are scrypt** (`node:crypto`, no dependency), format `scrypt$N$salt$hash`. Every seeded
+  account uses the password **`nexivora-demo`**. Phase 4 must either verify this scheme or re-seed.
+- **Prisma is 7.10.0 and pinned. Never run `npx prisma`** — outside the app directory npx silently
+  downloads the 8.0.0 release candidate, whose `migrate` command no longer exists. Use the npm
+  scripts, which always resolve the local binary.
+- **A killed `migrate` leaves an advisory lock behind.** If `db:reset` reports P1002, find the idle
+  backend in `pg_stat_activity` and terminate that one.
+- The public pages still import from `src/content/`. Phase 5 switches them to
+  `src/lib/db/queries/`, and `db:verify` already asserts both return the same public set.
+
+### Verified by
 
 | Check | Result |
 | --- | --- |
-| | |
+| `npm run check` | Clean — typecheck (both tsconfigs), 0 lint errors, 0 warnings, Prettier clean, 30 tests, 94 contrast pairs |
+| `npm run build` | Clean, 133 static pages |
+| `npm run db:reset` | 3.4s from empty — **budget was 20s** |
+| `npm run db:verify` | **26 / 26 assertions passed** |
+| Determinism | Two consecutive resets produce an identical md5 fingerprint over projects, users, ledger, posts and follows |
+| FTS ranking | A methodology-only term matches and ranks below a title match |
+| FTS triggers | Both a title edit and a section edit refresh the vector |
+| Duplicate detector | Seeded near-duplicate **0.585** (threshold 0.45); unrelated pair **0.106** |
+| Phase 2 contract | The anonymous query layer returns exactly the fixtures' public set; all 14 projects round-trip with sections and members intact |

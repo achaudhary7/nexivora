@@ -43,7 +43,8 @@ venue wifi to fail.
 cd Nexivora/app
 npm install
 cp .env.example .env          # fill in the values
-npm run db:reset              # migrate + seed the demo college
+npm run db:reset              # migrate + seed the demo college (~3.4s)
+npm run db:verify             # 26 integrity assertions — should be 26/26
 npm run dev                   # http://localhost:3000
 ```
 
@@ -67,6 +68,18 @@ extension is not genuinely working.
 | `npm run db:status` | Is it running, what version, does `pg_trgm` work, how many tables |
 | `npm run db:down` | Stop it |
 | `npm run db:destroy` | Delete the data directory and start over (keeps the binaries) |
+| `npm run db:reset` | Drop the schema, migrate, seed the demo world. **~3.4s.** Refuses any non-local host or `NODE_ENV=production`. |
+| `npm run db:seed` | Seed only — assumes the schema is current |
+| `npm run db:migrate` / `db:deploy` | Create-and-apply (dev) / apply-only (production) |
+| `npm run db:verify` | 26 integrity assertions over the seeded database |
+| `npm run db:studio` | Prisma Studio |
+
+**Never run `npx prisma`.** Outside `app/` it silently downloads Prisma 8.0.0-rc, whose
+`migrate` command no longer exists. The npm scripts always resolve the pinned local 7.10.0.
+
+If `db:reset` reports **P1002, "timed out trying to acquire a postgres advisory lock"**, a killed
+`migrate` has left an orphaned backend holding it. Find it in `pg_stat_activity` and terminate
+that one backend.
 
 Port **5433** deliberately, so it can never collide with an existing PostgreSQL install, and
 `listen_addresses = 'localhost'` because a development database has no business accepting network
@@ -274,12 +287,17 @@ localhost, which is the most damaging single SEO mistake available.
 
 ## CI (GitHub Actions, Phase 17)
 
-On every push: `npm ci` → `typecheck` → `lint` → `test` → `build`. On a tagged release, additionally
+On every push: `npm ci` → `typecheck` → `lint` → `test` → `build`, plus `db:reset` and
+`db:verify` against a service container so the integrity suite and the seed's determinism are both
+enforced rather than remembered. On a tagged release, additionally
 SSH to the VPS and run the deploy script. Nothing deploys that has not built.
 
 ## Deploy checklist
 
 - [ ] `npm run check` clean locally
+- [ ] `npm run db:verify` passes against a copy of production data
+- [ ] `npm run check:auth` passes against the deployed host
+- [ ] `RATE_LIMIT_ENABLED=true` and `EMAIL_TRANSPORT=smtp` are set
 - [ ] Migrations reviewed — no destructive change without an explicit, backed-up plan
 - [ ] `.env` on the server updated for any new variable
 - [ ] `NEXT_PUBLIC_SITE_URL` is the production host

@@ -156,7 +156,7 @@ Nexivora/
 
 ## 8a. What earlier phases already built — read before starting any phase
 
-Phases 0–2 are complete. These are the things a future session most often re-invents or contradicts.
+Phases 0–7 are complete. These are the things a future session most often re-invents or contradicts.
 
 ### Commands that already exist
 
@@ -164,7 +164,17 @@ Phases 0–2 are complete. These are the things a future session most often re-i
 | --- | --- |
 | `npm run db:up` | **Real PostgreSQL 16.8, nothing to install** (ADR-021). Port 5433, `pg_trgm`/`unaccent`/`citext` verified working. |
 | `npm run db:status` / `db:down` / `db:destroy` | Inspect, stop, reset the local cluster |
-| `npm run check` | typecheck + lint + format + contrast audit. **The gate.** Works with nothing running. |
+| `npm run db:reset` | Drop → migrate → seed the whole demo world. **~3.4s.** Refuses any non-local host. |
+| `npm run db:seed` / `db:migrate` / `db:deploy` / `db:studio` | The pinned local Prisma CLI — **never `npx prisma`** |
+| `npm run db:verify` | 26 integrity assertions over the seeded database. Structural *and* behavioural. |
+| `npm run test` | Node's built-in runner (ADR-024). **199 tests**, zero test dependencies. |
+| `npm run check:auth` | Drives a real browser through sign-in, gating and sign-out. **Needs a running server.** |
+| `npm run check:admin` | The admin console end to end, including a write that round-trips through the audit log. |
+| `npm run check:privacy` | Profile privacy asserted on the bytes a logged-out visitor receives. |
+| `npm run bench:import` | 500-row import against the 10s acceptance budget. Rolls back. |
+| `npm run check` | typecheck (both tsconfigs) + lint + format + **test** + contrast. **The gate.** Works with nothing running. |
+| `npm run check:workspace` | Drives a real browser through the workspace: the board **by keyboard with no drag**, the file route, the ledger, the avatar upload. **25/25.** Needs a running server. |
+| `npm run check:chart-palette` | The six colour-vision checks over the `--color-series-*` tokens, in both themes. In `npm run check`. |
 | `npm run check:seo` | Crawls the sitemap and asserts the whole per-page SEO contract. **Needs a running server.** Found 191 real defects on its first run. |
 | `npm run audit:layout [route]` | Computed font sizes, spacing and overflow at 390/768/1280/1536 |
 | `npm run shot [route]` | Full-page screenshots, light and dark, via CDP |
@@ -190,6 +200,109 @@ Phases 0–2 are complete. These are the things a future session most often re-i
   a ramp step (ADR-015). Type has a **usage ceiling** in `docs/DESIGN-SYSTEM.md` (ADR-018).
 - **~35 UI primitives, 85 icons, 8 illustrations exist.** If you are about to write a second Button,
   stop. `/style-guide` is the reference.
+- **The schema exists: 90 models, 29 enums.** Read `prisma/schema.prisma` before adding a model —
+  the thing you need is probably there, including `Question`, `Answer`, `Resource`,
+  `ActivityEvent` and the whole evaluation group.
+- **`Viewer` is the query contract.** Every function in `src/lib/db/queries/` takes it as its
+  first argument, always — including for the logged-out public, where `ANONYMOUS` is a real viewer
+  rather than a null. A query without a viewer parameter is a leak waiting to happen.
+- **`visibleTo(viewer)` in `queries/projects.ts` is the database-side visibility predicate,
+  once.** It mirrors `src/content/index.ts`, and `db:verify` asserts the two return the same
+  public set. Compose it; never write a second one.
+- **Invariants live in the database.** 16 check constraints enforce the post anchor rule (ADR-006),
+  approval-before-publication (ADR-010) and more. If you find yourself validating one of these only
+  in a route handler, it is already enforced underneath you.
+- **The contribution ledger is append-only.** Corrections are compensating events, never updates.
+  Weights live in `src/config/ledger.ts` and are denormalised onto each event at write time.
+- **Search: `lib/search/fts.ts` for queries, `lib/search/similarity.ts` for the duplicate
+  scorer.** Vectors are trigger-maintained — never write `searchVector` from application code.
+- **`can(viewer, action, resource)` in `lib/authz/policy.ts` is the ONLY place a permission is
+  decided.** 41 actions, 100 matrix assertions. If you are about to write `if (role === …)` in a
+  route handler, the rule belongs in `policy.ts` — a second check drifts, and the more permissive
+  one wins silently.
+- **A denied read returns `null`; a denied write throws `ForbiddenError`.** A 403 on a read
+  confirms the resource exists, which is itself the leak.
+- **There is no `viewer.role`** (ADR-029). Roles are per membership; faculty scope is per
+  *subject*, not per college. `hasRoleAt(viewer, collegeId, role)` has no college-less variant on
+  purpose.
+- **The query is the security boundary; `proxy.ts` is a convenience** (ADR-028). Guards protect
+  pages, not data. Anything new must be safe with the proxy disabled — `isolation.test.ts` asserts
+  exactly that.
+- **`projectResource()` in `queries/projects.ts` builds the shape `can()` expects.** Use it
+  rather than assembling one by hand, and add new scoped queries to the agreement test that asserts
+  `visibleTo()` and `can()` still say the same thing.
+- **Passwords are scrypt with the parameters inside the hash** (ADR-026), upgraded on sign-in.
+  Sessions are database rows, not JWTs (ADR-027) — which is what makes per-device revoke possible,
+  and why a role change or suspension takes effect on the member's very next request with no cache
+  to bust.
+- **A page swaps from `src/content/` to the database in the phase that CREATES its data**
+  (ADR-030). Editorial copy — changelog, FAQ, legal, knowledge, features, pricing — stays in
+  `src/content/` permanently. Do not swap a page ahead of its phase.
+- **Adapters carry a swap, not component rewrites** (ADR-032). `toContentProjectCard()` in
+  `queries/adapters.ts` maps a database row into the shape Phase 2's components already speak.
+- **Every administrative mutation calls `guard(collegeId, action)` and writes `logAudit` inside
+  its transaction.** The audit log has no update or delete path, and that is the point.
+- **Archive, never delete** anywhere history matters, and refuse when children would be orphaned.
+- **Privacy is enforced by NOT querying** (ADR-033). `getProfile()` decides visibility before it
+  selects; an unentitled field is never read. Never add a query that reads profile fields directly,
+  and never filter a private field in the view.
+- **A private profile and a username that does not exist are the same response** (ADR-034). Do not
+  add a 404-vs-403 distinction, a different title, or anything else that separates them.
+- **Skills: only project evidence promotes a claim, and only Phase 9 may write `ATTESTED`.**
+  `recomputeSkills(userId)` runs on project state change, never on render.
+- **Every new route needs an entry in `RESERVED_USERNAMES`** — `infer.test.ts` reads the route
+  list off the filesystem and will fail otherwise.
+- **`checkUsername()` expects an already-normalised string.** Call `normaliseUsername()` first.
+- **Auth flows never reveal whether an account exists.** Sign-in, registration and password reset
+  all answer identically for a known and an unknown address, and sign-in verifies against a decoy
+  hash so a missing account does not answer faster.
+
+- **`requireWorkspace(viewer, groupId)` is the gate for every workspace surface**, and it returns
+  `null` for "this group does not exist" and "this group is not yours" alike. Never add a
+  distinction — the existence of a named group inside a named class is itself information (the same
+  reasoning as ADR-034).
+- **Every workspace read takes a `Workspace`, not a group id.** That value can only be obtained from
+  `requireWorkspace()`, so a query cannot be called with an id taken straight off the URL. It is a
+  safety property, not a convenience.
+- **`groupVisibleTo(viewer)` is the group visibility predicate, once**, in `queries/group.ts`. For
+  the logged-out public it returns an *impossible* predicate (`{ id: { in: [] } }`) rather than an
+  empty object — `{}` would match every group in the database.
+- **The ledger has no update path and its transaction boundary is a type** (ADR-038).
+  `recordLedgerEvent(tx, …)` accepts only an interactive-transaction client, so
+  `recordLedgerEvent(db, …)` does not compile. Corrections are **compensating events** with negative
+  weights; `scoreMembers` floors a member at zero so double compensation cannot invert a share.
+- **The ledger is visible to every member, not only to faculty.** This is the design, not an
+  oversight: a visible ledger changes behaviour during the project, and a hidden one is surveillance
+  students will correctly resent. Peer review is the one asymmetry (ADR-008), enforced in
+  `getReviews()` at the query — the component is not even given the viewer's id.
+- **Peer review withholds the aggregate below two reviews.** With one, "the average about you" and
+  "what that person said" are the same sentence.
+- **A value a client component needs never lives in a query module.** Importing a runtime constant
+  from `lib/db/queries/*` pulls `pg` into the browser bundle and fails the build with a trace that
+  points at the component rather than the import. Types are fine (`import type` is erased);
+  constants live in `config/`. That is why `config/tasks.ts` exists.
+- **A `"use server"` file may export only async functions.** A number or an object export is a build
+  failure, not a lint warning. That is why `config/storage.ts` exists.
+- **Files are served only through `GET /api/files/[id]`**, which authorises and 404s identically for
+  absent, unauthorised and quarantined. Images shown beside a name (avatars, logos) go through
+  `/api/images/[key]` instead, which is **deliberately public** — an avatar appears on public pages —
+  and is safe because keys are 128-bit random and SVG is refused at upload.
+- **File type is decided by magic bytes, never by extension or the client's MIME type**
+  (`lib/storage/file-types.ts`). A disagreement between bytes and name is a refusal with the reason
+  said plainly.
+- **Discussion, comments and project sections are plain text rendered through
+  `components/content/rich-text.tsx`** (ADR-036). There is no HTML path and therefore no sanitiser.
+  Do not add `dangerouslySetInnerHTML` anywhere — it reintroduces a threat class that is currently
+  absent.
+- **Charts use `--color-series-*`, not the domain palette** (ADR-037). The domain colours are
+  contrast-checked against the surface, which is the wrong test for marks that must separate from
+  *each other*: two of them collapse under deuteranopia. `npm run check:chart-palette` guards the
+  chart set. More than a couple of series means **small multiples with a name per facet** — six hues
+  cannot separate on all pairs inside the dark lightness band, and we measured that rather than
+  guessing.
+- **Drag-and-drop is layered over a keyboard control, never the reverse** (ADR-039). The "move to"
+  menu is the primary path; the native drag events are the enhancement. This is why no drag library
+  is installed.
 
 ### Framework facts that fail silently if forgotten
 
@@ -198,6 +311,46 @@ Phases 0–2 are complete. These are the things a future session most often re-i
 - **`params` and `searchParams` are Promises.** So are the params in `sitemap` and image generators.
   Use `next typegen` and the `PageProps<'/route'>` helpers.
 - **`next lint` and the `eslint` key in `next.config.ts` are gone.**
+- **A stale `next start` is not killed by `pkill` on Windows.** The rebuild succeeds, the new
+  server fails to bind, and the **old build keeps answering on port 3000** — which presents as a
+  feature that does not work rather than as a stale server. Use
+  `Get-NetTCPConnection -LocalPort 3000` and `Stop-Process`, and read the start log. This cost more
+  time in Phase 7 than any actual bug.
+- **`path.resolve`/`path.join` on a runtime value makes Turbopack trace the whole project** into
+  the server bundle, and at module scope it fails the build outright during page-data collection.
+  Resolve lazily and annotate with `/* turbopackIgnore: true */`.
+- **A Chrome profile left locked by an orphaned headless run makes the next browser check hang
+  silently**, producing no output at all rather than an error. `Stop-Process -Name chrome` and
+  delete `.screenshots/.chrome-*-profile` before believing a check that printed nothing.
+- **`check:seo` cannot run against `next dev`.** The crawler's concurrent first-compile load makes
+  Turbopack throw `SyntaxError: Unexpected end of JSON input` on unrelated pages. Build and
+  `npm run start` first.
+- **`Date.now()` in a component body is a lint error** — React's purity rule, and it is right.
+  Compute "has this expired" in the loader function, where it is a fact about when the data was read.
+- **Prisma 7 moved the datasource URL out of the schema.** The CLI reads `prisma.config.ts`; the
+  runtime needs the `@prisma/adapter-pg` driver adapter (ADR-002).
+- **`npx prisma` from outside `app/` silently downloads the 8.0.0 release candidate**, whose
+  `migrate` command no longer exists — it is `migration` there. Use the npm scripts.
+- **`prisma migrate dev` uses a shadow database created empty**, so a migration that only *asserts*
+  an extension exists makes the command permanently unusable. Try `CREATE EXTENSION IF NOT EXISTS`
+  and swallow only a privilege error.
+- **`prisma migrate reset` is gated behind an interactive consent prompt** in Prisma 7 and cannot
+  run unattended. `scripts/db-reset.mjs` does the drop itself.
+- **A killed `migrate` leaves an advisory lock held by an orphaned backend.** Symptom: P1002,
+  "timed out trying to acquire a postgres advisory lock". Find it in `pg_stat_activity` and
+  terminate that one backend.
+- **Auth.js v5 is still `5.0.0-beta.32`, and its Credentials provider cannot use database
+  sessions** — it requires JWT, so per-device revoke is impossible with it (ADR-027). Check before
+  reaching for it again.
+- **A `redirect()` inside a Server Action is a *soft* navigation.** `document.readyState` never
+  leaves `"complete"`, so any end-to-end check that waits on readyState will sample a page that is
+  about to move. Wait for the URL to change instead.
+- **A stale Turbopack worker reports `Jest worker encountered 2 child process exceptions` with no
+  real error.** It is not your code. Stop the dev server, `rm -rf .next/cache`, restart.
+- **ESLint will happily lint whatever lands in the working tree** — the unpacked PostgreSQL
+  distribution, a headless Chrome profile's bundled extensions. Both have caused an out-of-memory
+  or a wall of `this`-aliasing errors. Ignore new generated directories in `eslint.config.mjs`
+  as soon as they appear.
 
 ### Process lessons that cost real time
 
@@ -208,6 +361,64 @@ Phases 0–2 are complete. These are the things a future session most often re-i
    Tailwind class sorting silently no-ops string replacements against source you have not re-read.
 3. **Write the audit before the content, and run it often.** 191 violations found at once is
    recoverable; 191 found at launch is not.
+4. **Test a heuristic against real data, never against data you wrote to test it.** Phase 3's
+   duplicate scorer passed its unit test at 0.562 on invented prose and scored 0.420 — a failure —
+   on the actual fixture pair, because real problem statements differ wildly in length (ADR-023).
+   The tests now read `src/content/` directly so they cannot be easier than production.
+5. **Write the integrity suite expecting it to find things.** `db:verify` failed on its first run
+   and both failures were genuine gaps in the *schema*, not the seed — one became ADR-022. An
+   assertion that has never failed has not yet earned your trust.
+6. **Prove the pipeline on something small before building the large thing.** A four-line probe
+   schema surfaced the Prisma 7 config change, the shadow-database problem and the migrate flow in
+   minutes, rather than in the middle of a 90-model migration.
+7. **Check a named dependency before adopting it, even when the plan names it.** The Phase 4 spec
+   said "Auth.js v5, JWT sessions". Auth.js v5 is a beta, and its Credentials provider cannot do
+   database sessions at all — which two of that same phase's acceptance criteria required. Thirty
+   seconds of `npm view` and one documentation page changed the architecture (ADR-027).
+8. **A test that reads a mutable row is not a fixture.** Phase 4's password test asserted the
+   *seeded* hash format, then failed the moment a real sign-in upgraded it — which was the feature
+   working. Construct the input the test needs; do not borrow a row that the system is supposed to
+   change.
+9. **Every denial suite needs a positive control.** A policy that denied everything would pass every
+   cross-college assertion. One row proving a member *can* reach their own group is what makes the
+   other ninety-nine mean something.
+10. **Test a parser against an ugly file, not a generated one.** Phase 5's CSV tests were written
+    with a BOM, CRLF, non-breaking spaces, smart quotes and Excel's `="0022071"` wrapper — and the
+    wrapper case found a real bug: the parser treated *any* quote as a delimiter, where RFC 4180
+    quotes only at field start.
+11. **Refuse data a spreadsheet has already corrupted; do not convert it.** `2.2008E+04` is a roll
+    number Excel has truncated. Importing it silently is worse than failing, because nobody notices.
+12. **Before believing a failing route, check which server answered.** A stale `next start` keeps
+    port 3000 and the new one fails to bind — so a "404 on a route I just built" was an old build.
+13. **Assert a rule against the real thing it constrains, not against its own configuration.** The
+    reserved-username test reads the route list off the filesystem; asserting the blocklist against
+    itself would have proved nothing, and reading the routes found five that were missing.
+14. **When a test fails, check the test's premise before the code's logic.** Phase 6's indexability
+    test looked for "a public profile at an unverified college", found somebody who was *also* at two
+    verified ones, and blamed the code for its own faulty search.
+15. **Response size is not evidence of a leak.** Next streams metadata and its position varies
+    between requests to the same URL. Compare rendered content, not byte counts.
+16. **A denial suite's positive control is what finds the broken fixture.** Phase 7's file check
+    asserted "a member CAN fetch their own file" before asserting the refusals — and that is what
+    revealed the seed had 90 file rows with no bytes behind them. Every refusal was passing
+    trivially, because the file 404'd for everybody. Lesson 9 said a denial suite needs a control;
+    this is the first time the control caught a defect in the *fixture* rather than the policy.
+17. **An end-to-end check must select on hooks it owns, never on roles it guesses.** The board's
+    keyboard assertion selected `button[aria-haspopup=menu]`, matched the header's **theme
+    toggle**, and reported a pass. Explicit `data-*` hooks cannot drift onto another component.
+18. **Check what your own assertion string also matches.** The avatar check looked for "not
+    accepted" anywhere on the page and caught the form's own static hint, reporting a refusal on
+    an upload that had succeeded. Scope the match to the element that carries the result.
+19. **Before believing four failures, check whether one thing explains all four.** A board with no
+    `data-task` attributes, in a build that provably contained them, was a stale server — not four
+    bugs. When a cluster of assertions fails together, suspect the environment first.
+20. **A green check that prints nothing is not a green check.** `check:auth` defaulted to port
+    3001 for four phases and exited 0 having tested nothing. Assert that a check *ran*, not only
+    that it did not fail.
+21. **Run every end-to-end check twice before trusting it.** `check:admin` created a department with
+    a fixed code that is unique per college, so it passed exactly once per database and failed on
+    every run after — and the *next* assertion masked it by finding the first run's audit entry. A
+    check that mutates state must generate everything the schema requires to be unique.
 
 ---
 

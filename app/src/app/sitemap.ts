@@ -1,16 +1,13 @@
 import type { MetadataRoute } from "next";
 
 import { DOMAINS, SDGS, SUBTOPICS, sdgPath } from "@/config/taxonomy";
-import {
-  publicArticles,
-  publicCollegeList,
-  publicIdeas,
-  publicPeopleList,
-  publicProjects,
-} from "@/content";
+import { publicArticles, publicIdeas, publicProjects } from "@/content";
 import { publicOpportunities } from "@/content/opportunities";
 import { helpArticles } from "@/content/site";
 import { legalDocuments } from "@/content/legal";
+import { ANONYMOUS } from "@/lib/authz/viewer";
+import { publicCollegeSlugs } from "@/lib/db/queries/institution";
+import { publicProfileUsernames } from "@/lib/db/queries/profile";
 import { absoluteUrl } from "@/lib/seo/metadata";
 
 /**
@@ -34,7 +31,7 @@ import { absoluteUrl } from "@/lib/seo/metadata";
  * done yet: the limit is 50,000 URLs and we are at roughly 90. Splitting now
  * would be structure without purpose. Phase 12 splits it when the archive grows.
  */
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entry = (
     path: string,
     lastModified: string | Date,
@@ -94,12 +91,20 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const sdgPages = SDGS.map((s) => entry(sdgPath(s.number), staticUpdated, "weekly", 0.6));
 
-  const collegePages = publicCollegeList().map((college) =>
-    entry(`/colleges/${college.slug}`, staticUpdated, "weekly", 0.6),
+  // From the database as of Phase 5, so granting or revoking verification
+  // changes the sitemap. The check that matters is that an unverified college is
+  // absent — scripts/check-seo.mjs asserts it against a real unverified row.
+  const collegeSlugs = await publicCollegeSlugs(ANONYMOUS);
+  const collegePages = collegeSlugs.map((slug) =>
+    entry(`/colleges/${slug}`, staticUpdated, "weekly", 0.6),
   );
 
-  const profilePages = publicPeopleList().map((person) =>
-    entry(`/p/${person.username}`, staticUpdated, "weekly", 0.5),
+  // From the database as of Phase 6. A private profile is absent by
+  // construction — the query only returns public profiles at verified colleges
+  // — rather than by a filter someone has to remember (acceptance criterion 3).
+  const profileUsernames = await publicProfileUsernames();
+  const profilePages = profileUsernames.map((username) =>
+    entry(`/p/${username}`, staticUpdated, "weekly", 0.5),
   );
 
   const ideaPages = publicIdeas().map((idea) =>

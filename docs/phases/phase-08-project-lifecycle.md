@@ -9,6 +9,68 @@
 | **Started** | — |
 | **Completed** | — |
 
+## What Phase 3 already provides
+
+*Added 2026-09-09, when Phase 3 completed. Check these before building — the most common way to
+waste a phase is to rebuild something the previous one shipped.*
+
+- **`ProjectSection` is rows, not JSON** (ADR-009) — 9 per project, 126 seeded.
+- **`ProjectStatusEvent` already records the transition history** the timeline renders from.
+- **Publication is gated by a check constraint**: a `PUBLIC` project without `approved = true`
+  cannot be stored (ADR-010). Do not re-implement that rule in a route handler; it is underneath you.
+- **The duplicate check is built and tested** — `shortlistSimilarProjects()` in
+  `lib/search/fts.ts` narrows via the trigram index, `scoreSimilarity()` in
+  `lib/search/similarity.ts` decides (ADR-023). It flags for a **conversation, never an
+  accusation**: a replication study scores like a copy, and only a human can tell them apart.
+- **`ProjectSubmission` stores an immutable snapshot per round**; `SimilarityCheck` stores the
+  matches and any faculty override with its justification.
+
+## What Phase 5 already provides
+
+*Added 2026-09-09, when Phase 5 completed.*
+
+- **The project pages still read `src/content/`, and swap in this phase** (ADR-030) — this is where
+  projects become creatable, so this is where the public pages should read the database.
+- **`toContentProjectCard()` in `queries/adapters.ts` is how a row reaches a Phase 2 component.**
+  Extend it rather than rewriting `ProjectCard`.
+- **Until that swap, the public site is mixed** — colleges from the database, projects from
+  fixtures. They agree because `db:verify` asserts the anonymous query layer returns exactly the
+  fixtures' public set. Your swap removes the need for that assertion.
+- **`check:seo` must still pass 127/127 afterwards.** That is the bar the college swap cleared and
+  the only thing that makes "no rendered page changed" a fact rather than a hope.
+
+## What Phase 6 already provides
+
+*Added 2026-09-09, when Phase 6 completed.*
+
+- **Call `recomputeSkills(userId)` for every member when a project's status changes.** That is what
+  promotes a self-declared skill to evidenced, and the profile's credibility depends on it.
+- **Only `IN_PROGRESS`, `UNDER_REVIEW`, `COMPLETED` and `ARCHIVED` count as evidence.** A draft
+  deliberately yields nothing — otherwise a skill can be manufactured with an empty project.
+- **`toContentProjectCard()` is the adapter** the profile page already uses; extend it rather than
+  rewriting components when you swap the project pages.
+
+## What Phase 7 already provides
+
+*Added 2026-09-10, when Phase 7 completed.*
+
+- **Storage exists.** `storeImage("cover", projectId, file)` in `lib/storage/images.ts` is the
+  project cover, and `components/ui/image-upload.tsx` is the control. **You need one schema column**
+  — `Project.coverUrl` — which is why the cover was not built in Phase 7: a migration for a field
+  nothing renders cannot be verified.
+- **A group exists before its project does**, and `requireWorkspace(viewer, groupId)` is how you
+  reach one. `workspace.projects` is already on the loaded value.
+- **Milestones are wired.** `closeMilestone()` in `lib/workspace/review.ts` gates closing on peer
+  review and writes the `MILESTONE_OWNED` ledger event. If you add milestone CRUD, do not add a
+  second close path.
+- **The markdown renderer is the section renderer** (ADR-036). Project sections are plain text
+  through `components/content/rich-text.tsx` — no sanitiser, no Tiptap, and no
+  `dangerouslySetInnerHTML` anywhere in the product. Keep it that way.
+- **`recomputeSkills(userId)` must run when a project changes state** — Phase 6's rule, and Phase 8
+  is the phase that changes project state.
+- **`can(viewer, 'project:approve' | 'project:submit' | 'project:visibility')` is already written
+  and tested.** Do not re-derive who may publish.
+
 ## Objective
 
 Turn a group's work into a **structured, reviewable, publishable record**. This is the object the

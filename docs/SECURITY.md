@@ -1,4 +1,10 @@
-# Security, Privacy & Trust
+# Security
+
+**Phase 4 (2026-09-09) implemented §1–2.** Passwords are scrypt at OWASP parameters with the cost
+stored inside the hash and upgraded on sign-in (ADR-026); sessions are opaque tokens in an httpOnly
+cookie, hashed at rest, revocable per device (ADR-027); reset and verification tokens are hashed,
+single-use and short-lived; and login is rate-limited per IP **and** identifier together. Auth
+responses never reveal whether an account exists., Privacy & Trust
 
 Phase 16 owns the hardening pass and this checklist. Everything here is designed for from Phase 4
 onward, not retrofitted.
@@ -52,12 +58,22 @@ The full matrix is in `docs/ROLES-PERMISSIONS.md`. The security-relevant propert
 - Prisma parameterises everything; the only raw SQL is the full-text search path, and it uses
   parameter binding, never string interpolation. This is called out because it is the one place a
   mistake would be exploitable.
-- **Rich text is sanitised on the server** with an allow-list (`isomorphic-dompurify`) before
-  storage, and again at render. Tiptap's client-side output is never trusted.
-- **User-uploaded SVG is not rendered inline.** SVG can carry script. Uploaded SVGs are served as
-  `image/svg+xml` with `Content-Security-Policy: sandbox` and rendered through `<img>`, never
-  inlined. Our own illustration SVGs are source code and are fine.
-- Markdown, if used anywhere, renders with raw HTML disabled.
+- **There is no HTML path for user content, so there is no sanitiser** (**ADR-036**, superseding
+  what this section said until Phase 7). Project sections, thread bodies, replies and task comments
+  are stored as **plain text** and rendered through `components/content/rich-text.tsx`, which parses
+  a small markdown grammar and emits **React elements**. It never calls `dangerouslySetInnerHTML`,
+  so markup injection is not mitigated here — it is not representable.
+
+  This is deliberately *stronger* than the sanitiser it replaces. A sanitiser is a filter that has
+  to stay correct against every new bypass; a renderer that cannot emit raw HTML has nothing to
+  bypass. `dangerouslySetInnerHTML` appears nowhere in the codebase, and adding it anywhere
+  reintroduces a threat class that is currently absent.
+- **User-uploaded SVG is never inlined.** SVG is markup and can carry script. Uploads are served
+  only through `GET /api/files/[id]`, which sets `Content-Security-Policy: sandbox; default-src
+  'none'` and `Content-Disposition: attachment` — SVG is deliberately excluded from the previewable
+  set, so it downloads rather than rendering. Our own illustration SVGs are source code and are fine.
+- Markdown renders with raw HTML disabled, which for the renderer above means "there is no code path
+  that would accept it".
 
 ## 4. File uploads
 

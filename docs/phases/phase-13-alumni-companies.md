@@ -9,6 +9,22 @@
 | **Started** | — |
 | **Completed** | — |
 
+## What Phase 3 already provides
+
+*Added 2026-09-09, when Phase 3 completed. Check these before building — the most common way to
+waste a phase is to rebuild something the previous one shipped.*
+
+- **Modelled and seeded**: `AlumniProfile`, `CompanyProfile`, `Opportunity`, `Application`,
+  `ApplicationStageEvent`, `MentorshipRequest`, `MentorshipSession`, `Event`,
+  `EventRegistration`, `CollegePartnership`.
+- **Company verification is the anti-abuse gate.** An unverified company cannot post, cannot contact
+  a student and is not listed. One is seeded unverified so the rule is visibly enforced. Fake
+  internships charging a "certificate fee" are a real scam aimed at exactly these students.
+- **`MentorshipRequest.goal` is required.** "Be my mentor" produces nothing useful for either side.
+- **`Opportunity.validThrough` is constrained to be after `postedOn`** and must be honoured —
+  an expired posting left in the index is a quality signal Google acts on.
+- **Contactability is opt-in** and off by default in `PrivacySetting` (DPDP).
+
 ## Objective
 
 Turn the archive into **opportunity**. Alumni return as mentors; companies discover students by

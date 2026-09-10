@@ -8,20 +8,32 @@ import { ProjectCard } from "@/components/project/project-card";
 import { Avatar, Badge, Card } from "@/components/ui/display";
 import { Breadcrumbs } from "@/components/ui/navigation";
 import { SDG_BY_NUMBER, sdgPath } from "@/config/taxonomy";
-import { colleges } from "@/content/colleges";
-import { projectsByCollege, publicCollege, publicPeopleList } from "@/content";
+import { ANONYMOUS } from "@/lib/authz/viewer";
+import { toContentProjectCard } from "@/lib/db/queries/adapters";
+import { getCollege, publicCollegeSlugs, publicDirectory } from "@/lib/db/queries/institution";
+import { listProjects } from "@/lib/db/queries/projects";
 import { JsonLd, breadcrumbList, collegeOrUniversity, itemList } from "@/lib/seo/jsonld";
 import { buildMetadata } from "@/lib/seo/metadata";
 
+/**
+ * A college's public page.
+ *
+ * Reads the database as of Phase 5, rendered for `ANONYMOUS` — this is what the
+ * public and the crawler see. An unverified college resolves to nothing here,
+ * which is the anti-abuse gate working: its members reach it through the admin
+ * console instead.
+ */
 export const dynamicParams = false;
 
-export function generateStaticParams() {
-  return colleges.filter((c) => c.verified).map((c) => ({ slug: c.slug }));
+export async function generateStaticParams() {
+  const slugs = await publicCollegeSlugs(ANONYMOUS);
+  return slugs.map((slug) => ({ slug }));
 }
 
 export async function generateMetadata(props: PageProps<"/colleges/[slug]">): Promise<Metadata> {
   const { slug } = await props.params;
-  const college = publicCollege(slug);
+  const college = await getCollege(ANONYMOUS, slug);
+
   if (!college) {
     return buildMetadata({
       title: "College not found",
@@ -31,23 +43,33 @@ export async function generateMetadata(props: PageProps<"/colleges/[slug]">): Pr
     });
   }
 
-  const count = projectsByCollege(slug).length;
+  const projects = await listProjects(ANONYMOUS, { collegeId: college.id, take: 500 });
+
   return buildMetadata({
     title: `${college.shortName} student projects`,
-    description: `${count} documented student ${count === 1 ? "project" : "projects"} published by ${college.name}, ${college.city} — with methodology, results and faculty attestation.`,
+    description: `${projects.length} documented student ${projects.length === 1 ? "project" : "projects"} published by ${college.name}, ${college.city} — with methodology, results and faculty attestation.`,
     path: `/colleges/${slug}`,
   });
 }
 
 export default async function CollegePage(props: PageProps<"/colleges/[slug]">) {
   const { slug } = await props.params;
-  const college = publicCollege(slug);
+  const college = await getCollege(ANONYMOUS, slug);
   if (!college) notFound();
 
-  const projects = projectsByCollege(slug);
-  const members = publicPeopleList().filter((p) => p.collegeSlug === slug);
-  const faculty = members.filter((p) => p.role === "faculty");
-  const sdgCoverage = [...new Set(projects.flatMap((p) => p.sdgs))].sort((a, b) => a - b);
+  const [rows, directory] = await Promise.all([
+    listProjects(ANONYMOUS, { collegeId: college.id, take: 500 }),
+    publicDirectory(college.id, 24),
+  ]);
+
+  const projects = rows.map((row) => toContentProjectCard(row));
+  const faculty = directory.filter((person) =>
+    person.memberships.some((membership) => membership.role === "FACULTY"),
+  );
+
+  const sdgCoverage = [...new Set(rows.flatMap((row) => row.sdgs.map((sdg) => sdg.goal)))].sort(
+    (a, b) => a - b,
+  );
 
   const crumbs = [
     { label: "Colleges", href: "/colleges" },
@@ -64,8 +86,8 @@ export default async function CollegePage(props: PageProps<"/colleges/[slug]">) 
             description: college.description,
             city: college.city,
             state: college.state,
-            website: college.website,
-            foundingDate: college.foundingDate,
+            website: college.website ?? undefined,
+            foundingDate: college.foundingDate ?? undefined,
           }),
           itemList(
             projects.map((p) => ({ name: p.title, url: `/projects/${p.slug}` })),
@@ -113,7 +135,7 @@ export default async function CollegePage(props: PageProps<"/colleges/[slug]">) 
           </div>
           <div>
             <dt className="text-xs tracking-wide text-fg-subtle uppercase">Public profiles</dt>
-            <dd className="mt-1 font-display text-2xl font-bold">{members.length}</dd>
+            <dd className="mt-1 font-display text-2xl font-bold">{directory.length}</dd>
           </div>
         </dl>
 
@@ -121,8 +143,8 @@ export default async function CollegePage(props: PageProps<"/colleges/[slug]">) 
           <h2 className="font-display text-xl font-bold md:text-2xl">Departments</h2>
           <div className="mt-4 flex flex-wrap gap-2">
             {college.departments.map((dept) => (
-              <Badge key={dept} tone="outline" size="md">
-                {dept}
+              <Badge key={dept.id} tone="outline" size="md">
+                {dept.name}
               </Badge>
             ))}
           </div>
@@ -165,7 +187,6 @@ export default async function CollegePage(props: PageProps<"/colleges/[slug]">) 
                         {person.name}
                       </Link>
                     </p>
-                    <p className="mt-0.5 text-xs text-fg-subtle">{person.designation}</p>
                     <p className="mt-1.5 line-clamp-2 text-xs text-fg-muted">{person.headline}</p>
                   </div>
                 </Card>
