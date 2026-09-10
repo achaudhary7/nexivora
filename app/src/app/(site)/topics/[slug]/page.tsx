@@ -11,7 +11,7 @@ import { Accordion } from "@/components/ui/overlay";
 import { Breadcrumbs } from "@/components/ui/navigation";
 import { ALL_TOPICS, DOMAIN_BY_KEY, SUBTOPICS, TOPIC_BY_SLUG } from "@/config/taxonomy";
 import { topicEditorial } from "@/content/knowledge";
-import { projectsByTopic } from "@/content";
+import { projectsByTopic } from "@/lib/db/queries/public-projects";
 import { JsonLd, breadcrumbList, faqPage, itemList } from "@/lib/seo/jsonld";
 import { buildMetadata } from "@/lib/seo/metadata";
 
@@ -42,7 +42,7 @@ export async function generateMetadata(props: PageProps<"/topics/[slug]">): Prom
       index: false,
     });
 
-  const count = projectsByTopic(slug).length;
+  const count = (await projectsByTopic(slug)).length;
   return buildMetadata({
     title: `${topic.name} student projects`,
     description: `${topic.summary} Browse ${count} documented ${topic.name.toLowerCase()} ${count === 1 ? "project" : "projects"} with methodology, results and named teams.`,
@@ -56,7 +56,7 @@ export default async function TopicPage(props: PageProps<"/topics/[slug]">) {
   if (!topic) notFound();
 
   const editorial = topicEditorial[slug];
-  const projects = projectsByTopic(slug);
+  const projects = await projectsByTopic(slug);
   const domain = DOMAIN_BY_KEY[topic.domain];
   const children = SUBTOPICS.filter((t) => t.parent === slug);
   const isDomain = !topic.parent;

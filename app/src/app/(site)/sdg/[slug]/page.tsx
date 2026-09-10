@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/feedback";
 import { Breadcrumbs } from "@/components/ui/navigation";
 import { SDGS, sdgPath } from "@/config/taxonomy";
-import { projectsBySdg } from "@/content";
+import { projectsBySdg } from "@/lib/db/queries/public-projects";
 import { JsonLd, breadcrumbList, itemList } from "@/lib/seo/jsonld";
 import { buildMetadata, ensureDescription } from "@/lib/seo/metadata";
 
@@ -36,7 +36,7 @@ export async function generateMetadata(props: PageProps<"/sdg/[slug]">): Promise
       index: false,
     });
 
-  const count = projectsBySdg(sdg.number).length;
+  const count = (await projectsBySdg(sdg.number)).length;
   return buildMetadata({
     title: `SDG ${sdg.number}: ${sdg.title}`,
     description: ensureDescription(
@@ -53,7 +53,7 @@ export default async function SdgPage(props: PageProps<"/sdg/[slug]">) {
   const sdg = sdgFromSlug(slug);
   if (!sdg) notFound();
 
-  const projects = projectsBySdg(sdg.number);
+  const projects = await projectsBySdg(sdg.number);
   const crumbs = [
     { label: "SDG showcase", href: "/sdg" },
     { label: `SDG ${sdg.number}`, href: sdgPath(sdg.number) },

@@ -9,7 +9,8 @@ import { EmptyState } from "@/components/ui/feedback";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/navigation";
 import { DOMAINS, SDGS, TOPIC_BY_SLUG } from "@/config/taxonomy";
-import { publicCollegeList, publicProjects, projectYears } from "@/content";
+import { publicCollegeList } from "@/content";
+import { projectYears, publicProjects } from "@/lib/db/queries/public-projects";
 import type { Project } from "@/content/types";
 import { JsonLd, itemList } from "@/lib/seo/jsonld";
 import { buildMetadata } from "@/lib/seo/metadata";
@@ -86,7 +87,7 @@ export async function generateMetadata(props: PageProps<"/explore">): Promise<Me
 
 export default async function ExplorePage(props: PageProps<"/explore">) {
   const params = (await props.searchParams) as SearchParams;
-  const all = publicProjects();
+  const all = await publicProjects();
   const filtered = applyFacets(all, params);
 
   const pageParam = Number(Array.isArray(params.page) ? params.page[0] : params.page);
@@ -95,7 +96,7 @@ export default async function ExplorePage(props: PageProps<"/explore">) {
   const shown = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   const colleges = publicCollegeList();
-  const years = projectYears();
+  const years = await projectYears();
 
   /** Builds a URL with one facet toggled — every filter stays a shareable URL. */
   function facetHref(key: string, value: string): string {

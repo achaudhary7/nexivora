@@ -39,6 +39,21 @@ waste a phase is to rebuild something the previous one shipped.*
   archive surfaces, it must not surface authorship — ADR-008 does not lapse when a project is
   archived.
 
+## What Phase 8 already provides
+
+*Added 2026-09-10, when Phase 8 completed.*
+
+- **The public project page already reads the database.** Phase 12's work is the archive, lineage
+  rendering and the citation surface — **not the data source**. `check:seo` passed 127/127 across
+  the swap, so that page is a known-good baseline to build on.
+- **The citation ID is minted once at archive time** (`NEX-<code>-<year>-<sequence>`) inside the
+  `ARCHIVED` transition, and is immutable. It goes into other people's reference lists.
+- **`ARCHIVED` is terminal and `isEditable('ARCHIVED')` is false** — the archive's whole claim is
+  that a citation points at something that cannot change. Do not add an un-archive edge.
+- **`ProjectLineage` rows already render** through `lineageOf()`, which omits a private parent
+  rather than showing a broken link.
+- **`ProjectSubmission` snapshots are the permanent record** of what was submitted each round.
+
 ## Objective
 
 Make student work **permanent, citable, verifiable and public** — the differentiator that turns a

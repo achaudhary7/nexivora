@@ -2,12 +2,12 @@
 
 | | |
 | --- | --- |
-| **Status** | ⬜ Not Started |
+| **Status** | ✅ Complete |
 | **Depends on** | Phase 7 |
 | **Blocks** | Phases 9, 11, 12, 15 |
 | **Estimate** | 10 focused hours |
-| **Started** | — |
-| **Completed** | — |
+| **Started** | 2026-09-10 |
+| **Completed** | 2026-09-10 |
 
 ## What Phase 3 already provides
 
@@ -94,70 +94,82 @@ thing that ranks in search, and the thing a student shows an employer.
 ## Deliverables
 
 ### The project record
-- [ ] `/projects/[id]/edit` — section navigator showing completion state per section
-- [ ] `/projects/[id]/edit/[section]` — one editor per section, autosaving
-- [ ] The nine sections, each a `ProjectSection` row (ADR-009):
+- [x] `/projects/[id]/edit` — section navigator showing completion state per section
+- [x] `/projects/[id]/edit/[section]` — one editor per section, autosaving
+- [x] The nine sections, each a `ProjectSection` row (ADR-009):
       `PROBLEM · RESEARCH · SOLUTION · METHODOLOGY · PROTOTYPE · TESTING · RESULTS · CONCLUSION ·
       FUTURE_WORK`
-- [ ] Each section: rich text (Tiptap, server-sanitised), attachments from the group file library,
-      external links, word count, last editor, completion toggle
-- [ ] **Per-section guidance** — a short prompt explaining what belongs in this section and an
+- [~] Each section: **markdown-lite through the existing renderer, not Tiptap** (ADR-036 — there
+      is no HTML path, so the sanitiser it would need is unnecessary rather than absent), word
+      count, last editor, completion toggle. **No per-section attachments or external links** — the
+      group file library is one click away and a second copy of it here would diverge
+- [x] **Per-section guidance** — a short prompt explaining what belongs in this section and an
       example. Most students have never written a methodology section and the blank page is the
       real obstacle.
-- [ ] Metadata: title, one-line summary, abstract, domain and sub-domain, tags, tech stack, SDG
+- [x] Metadata: title, one-line summary, abstract, domain and sub-domain, tags, tech stack, SDG
       alignment (multi-select from the 17), team members with declared roles, repository link, demo
       link, video link, start and end dates
-- [ ] Edit history per section: who changed what, when; restore a previous version
-- [ ] Concurrent-edit protection: a soft lock with a visible "X is editing this section" indicator
-      (not CRDT merge — that is out of scope and saying so is better than half-doing it)
+- [x] Edit history per section: who changed what, when; restore a previous version
+- [~] Concurrent-edit protection: the soft lock is written, claimed on entry and refreshed every
+      four minutes, and the indicator renders. **Not verified with two simultaneous browsers** —
+      the end-to-end check drives one session (see summary)
 
 ### Lifecycle
-- [ ] States: `DRAFT → PROPOSED → APPROVED → IN_PROGRESS → UNDER_REVIEW → COMPLETED → ARCHIVED`,
+- [x] States: `DRAFT → PROPOSED → APPROVED → IN_PROGRESS → UNDER_REVIEW → COMPLETED → ARCHIVED`,
       plus `REJECTED` and `ABANDONED`
-- [ ] `lib/project/lifecycle.ts` — the transition table, with the role permitted for each
+- [x] `lib/project/lifecycle.ts` — the transition table, with the role permitted for each
       transition and the preconditions for it. **One place, unit-tested.**
-- [ ] Every transition writes a `ProjectStatusEvent` with actor, timestamp and reason
-- [ ] A transition with unmet preconditions is refused with a message naming exactly what is missing
-- [ ] `StatusPill` from Phase 1 used everywhere a status appears
+- [x] Every transition writes a `ProjectStatusEvent` with actor, timestamp and reason
+- [x] A transition with unmet preconditions is refused with a message naming exactly what is missing
+- [~] The editor uses `Badge` with the lifecycle's own `LABEL`, not `StatusPill`. `StatusPill`
+      takes Phase 2's seven-value content status; the editor needs all nine including `REJECTED`
+      and `ABANDONED`, which that type cannot express. `ProjectCard` still uses `StatusPill` on the
+      public surface, where seven is the right set
 
 ### Proposal & approval
-- [ ] `/projects/[id]/submit-proposal` — problem statement, proposed solution, domain, SDGs, team
-- [ ] **The similarity check runs at proposal time**, against the college archive and public
+- [x] `/projects/[slug]/propose` — problem statement, proposed solution, and the similarity check.
+      **`[slug]` not `[id]` throughout**: Next refuses two different dynamic names at the same route
+      position, and `/projects/[slug]` is already the public page (see summary)
+- [x] **The similarity check runs at proposal time**, against the college archive and public
       projects
-- [ ] Results shown to the student *before* submitting: top matches with scores and the reason for
+- [x] Results shown to the student *before* submitting: top matches with scores and the reason for
       each ("87% similar problem statement; shares 4 of 5 tech stack items")
-- [ ] Result stored as a `SimilarityCheck` row so the decision is auditable, not just the score
-- [ ] Faculty review queue: approve, reject with a reason, or request changes
-- [ ] Faculty can override a similarity flag with a recorded justification — because a legitimate
+- [x] Result stored as a `SimilarityCheck` row so the decision is auditable, not just the score
+- [x] Faculty review queue: approve, reject with a reason, or request changes
+- [x] Faculty can override a similarity flag with a recorded justification — because a legitimate
       continuation of previous work *should* look similar, and the system must not block it
-- [ ] Approval moves the project to `APPROVED` and unlocks full editing
+- [x] Approval moves the project to `APPROVED` and unlocks full editing
 
 ### Milestones & progress
-- [ ] `/projects/[id]/milestones` — create, order, assign an owner, set a due date
-- [ ] A milestone links to the tasks that constitute it
-- [ ] Milestone states: upcoming, in progress, at risk (past due, incomplete), complete
-- [ ] Closing a milestone triggers the Phase 7D peer review
-- [ ] **Progress is computed, never typed by hand**: section completion, milestone completion and
+- [x] `/projects/[id]/milestones` — create, order, assign an owner, set a due date
+- [~] A milestone shows the tasks linked to it and their completion. **Linking a task to a
+      milestone happens on the Phase 7 board, not here** — a second linker would be a second place
+      deciding what a milestone contains
+- [x] Milestone states: upcoming, in progress, at risk (past due, incomplete), complete
+- [x] Closing a milestone triggers the Phase 7D peer review
+- [x] **Progress is computed, never typed by hand**: section completion, milestone completion and
       task completion, weighted, with the weights in config
-- [ ] Progress and at-risk state surface to the Phase 9 faculty dashboard
-- [ ] Timeline / Gantt-lite view built from the existing `Timeline` primitive — no chart library
+- [x] `riskSignals()` and `milestoneState()` are written and unit-tested, ready for Phase 9 to
+      consume. There is no faculty dashboard yet to surface them on
+- [x] Timeline / Gantt-lite view — dated markers on a shared range, CSS grid, **no chart library**
 
 ### Visibility & IP
-- [ ] Visibility selector: `PRIVATE · GROUP · CLASS · COLLEGE · PUBLIC`
-- [ ] **Public requires faculty approval.** The group requests it; a faculty member grants it.
-- [ ] `embargoUntil` — an embargoed project shows title, team and abstract only; sections, files
+- [x] Visibility selector: `PRIVATE · GROUP · CLASS · COLLEGE · PUBLIC`
+- [x] **Public requires faculty approval.** The group requests it; a faculty member grants it.
+- [x] `embargoUntil` — an embargoed project shows title, team and abstract only; sections, files
       and results are hidden until the date. It can be *cited* without being *disclosed*.
-- [ ] A plain-language explanation of what each visibility level means, shown at the point of choice
-- [ ] A link to `/legal/ip-policy` from the embargo control
-- [ ] `resolveVisibility()` extended to cover projects fully; indexability derives from it (ADR-010)
+- [x] A plain-language explanation of what each visibility level means, shown at the point of choice
+- [x] A link to `/legal/ip-policy` from the embargo control
+- [x] `resolveVisibility()` extended to cover projects fully; indexability derives from it (ADR-010)
 
 ### Submission
-- [ ] `/projects/[id]/submit` — a pre-submission checklist: required sections complete, all
+- [x] `/projects/[id]/submit` — a pre-submission checklist: required sections complete, all
       milestones closed, all members have submitted peer reviews, required attachments present
-- [ ] Submission creates an **immutable snapshot** — the full record serialised at that moment
-- [ ] Post-submission editing is locked unless faculty request changes
-- [ ] Submission receipt with a timestamp, downloadable
-- [ ] Resubmission after requested changes creates a new snapshot; the old one is retained
+- [x] Submission creates an **immutable snapshot** — the full record serialised at that moment
+- [x] Post-submission editing is locked unless faculty request changes
+- [~] Submission receipt with a timestamp and a content digest, shown on submission and in the
+      history. **Not downloadable as a file** — that is a PDF, and `lib/pdf/` is Phase 15
+- [x] Resubmission after requested changes creates a new snapshot; the old one is retained
 
 ## Acceptance criteria
 
@@ -211,20 +223,99 @@ src/components/project/*                    SectionEditor, MilestoneTimeline, Vi
 
 ## Phase Summary
 
-*Fill this in when the phase is complete.*
+*Completed 2026-09-10.*
 
 **What was built.**
 
-**Key decisions made.**
+*The record.* `/projects/new`, `/my/projects`, and the editor at `/projects/[slug]/edit` — a section
+navigator with computed progress, nine per-section editors with autosave and version history, and a
+details tab carrying metadata, team, cover, visibility and the IP embargo. `config/sections.ts`
+holds each section's prompt, its two or three questions and a real example (ADR-044).
 
-**Similarity thresholds chosen, and how they were tuned.**
+*The lifecycle.* `lib/project/lifecycle.ts` is the transition table — nine states, thirteen edges,
+the actor each requires and the preconditions for it. `moveProject` asks it two separate questions in
+order: *is this move legal* and *may you make it*. Every transition writes a `ProjectStatusEvent`
+inside the same transaction.
+
+*Proposal and approval.* `/projects/[slug]/propose` runs the similarity check against the archive
+and stores it as a `SimilarityCheck` row; `/faculty/proposals` is the queue, scoped to subjects the
+viewer teaches, with approve / request-changes / reject and a recorded override for a legitimate
+overlap.
+
+*Milestones and submission.* `/projects/[slug]/milestones` with a dated Gantt-lite timeline and no
+chart library; `/projects/[slug]/submit` with a checklist that shows **every** unmet item at once and
+an immutable, byte-stable snapshot per round.
+
+*The swap.* Seven public pages and the sitemap now read the database (ADR-030). `check:seo` returned
+**127 pages, 247 JSON-LD blocks, 127 unique titles — identical to the pre-swap baseline.**
+
+**Key decisions made.** ADR-041 progress counts tasks only through the project's own milestones ·
+ADR-042 derived views are pure functions over a corpus, shared by fixtures and database ·
+ADR-043 a Prisma scalar list has no database default and raw SQL sees the `NULL` ·
+ADR-044 section guidance ships beside the textarea, never in a help article.
+
+**Similarity thresholds chosen, and how they were tuned.** Unchanged from Phase 3 —
+`DUPLICATE_THRESHOLD` and `RELATED_THRESHOLD` in `config/search.ts`, tuned there against the real
+corpus (ADR-023). This phase wired them to the proposal flow and asserted the result against the
+seeded pair rather than re-deriving them: the deliberate near-duplicate scores above the duplicate
+threshold, an unrelated project scores below the related one, and the trigram shortlist *reaches*
+the near-duplicate — both halves, because a correct scorer that never receives the candidate is
+useless. The presentation was the real work: every match carries **the reason for its score**
+("87% similar problem statement; shares 4 of 5 tech stack items"), and the copy says outright that
+overlap is frequently legitimate.
 
 **Deviations from the spec above, and why.**
 
+- **`[slug]`, not `[id]`, throughout.** `docs/SITEMAP.md` specifies `/projects/[id]/edit`, but
+  `/projects/[slug]` is already the public page and **Next refuses two different dynamic names at
+  the same route position**. A slug is unique, stable (never regenerated after creation) and
+  readable, so it is the better identifier anyway. `SITEMAP.md` is corrected.
+- **No Tiptap and no sanitiser**, per ADR-036 — the spec predates Phase 2's renderer.
+- **Five deliverables shipped partially and are marked `[~]`**: no per-section attachments, no
+  two-browser verification of the soft lock, task-to-milestone linking lives on the Phase 7 board,
+  no downloadable receipt file, and the editor uses `Badge` rather than `StatusPill` because that
+  component takes Phase 2's seven-value status and the editor needs all nine.
+- **The faculty queue is `/faculty/proposals`**, one route inside Phase 9's namespace. Phase 9
+  should build around it rather than beside it — a second approval path would mean two places
+  deciding what "approved" means.
+
 **Anything the next phase must know.**
+
+- **`requireEditableProject(viewer, slug)` is the gate**, and it returns the project for faculty
+  too — "can open" and "can edit" are separate, which is what lets a review screen reuse the loader
+  instead of growing a parallel one. `capabilities(viewer, project)` answers the second question,
+  entirely through `can()`.
+- **`attemptTransition` is the only place a status change is decided.** Phase 9's evaluation flow
+  must add edges to the table, not bypass it.
+- **Progress and risk are computed, never stored** — `computeProgress()` and `riskSignals()` in
+  `lib/project/progress.ts` are pure and unit-tested, and Phase 9's dashboard consumes them.
+- **A task counts toward a project only through that project's milestones** (ADR-041). A group can
+  own more than one project; the seed contains one that does.
+- **The Prisma client and raw SQL disagree about a scalar list** (ADR-043). Any raw query over one
+  needs `COALESCE`; any write needs an explicit `[]`.
+- Phase 12 inherits a public page that already reads the database. Its work is the archive, lineage
+  rendering and the citation surface — not the data source.
 
 **Verified by.**
 
 | Check | Result |
 | --- | --- |
-| | |
+| `npm run check` | Clean — **425 tests**, 0 lint errors, 0 warnings, Prettier clean |
+| `npm run build` | Clean |
+| `npm run check:project` | **17/17** in a real browser, full lifecycle |
+| `npm run check:seo` | **127 pages, 0 violations — identical to the pre-swap baseline** |
+| `npm run check:workspace` | 25/25 |
+| `npm run check:auth` | 12/12 |
+| `npm run check:admin` | 15/15 |
+| `npm run check:privacy` | 11/11 |
+| `npm run db:verify` | 26/26 |
+| Acceptance criterion 1 — end to end | draft → written → checked → **proposal submitted**, role-gated |
+| Acceptance criterion 2 — similarity | fires on the seeded near-duplicate, silent on an unrelated one |
+| Acceptance criterion 3 — override | recorded with its justification, shown to the group |
+| Acceptance criterion 4 — computed progress | 0% on a new project, 14% after one section |
+| Acceptance criterion 5 — embargo | listed with its abstract, body withheld |
+| Acceptance criterion 6 — private | 404 publicly, absent from the sitemap's 127 URLs |
+| Acceptance criterion 7 — submitted is locked | `isEditable('UNDER_REVIEW') === false`, enforced in `loadForEdit` |
+| Acceptance criterion 8 — byte-stable snapshot | identical digest across shuffled collections |
+| Acceptance criterion 9 — autosave | text survives a navigation and a reload |
+| Acceptance criterion 10 — soft lock | indicator implemented; **not** verified with two browsers |

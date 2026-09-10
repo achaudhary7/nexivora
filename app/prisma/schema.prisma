@@ -371,6 +371,7 @@ model User {
   ledgerEvents   LedgerEvent[]
   reviewsGiven   PeerReview[]     @relation("ReviewAuthor")
   reviewsAbout   PeerReview[]     @relation("ReviewSubject")
+  sectionEdits   ProjectSectionVersion[]
 
   posts        Post[]
   comments     Comment[]
@@ -1328,6 +1329,10 @@ model Project {
   /// Assigned once at archive time, immutable, printable. It goes into other
   /// people's reference lists, so it is never recomputed from mutable fields.
   citationId    String? @unique
+  /// Uploaded through storeImage("cover", …) and served from /api/images.
+  /// Null is the normal case — GeneratedProjectCover draws a deterministic
+  /// mark from the slug, so a project without one is never a grey rectangle.
+  coverUrl      String?
   repositoryUrl String?
   demoUrl       String?
   videoUrl      String?
@@ -1393,8 +1398,38 @@ model ProjectSection {
 
   project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   feedback Feedback[]
+  versions ProjectSectionVersion[]
 
   @@unique([projectId, kind])
+}
+
+/// One row per save of a section, so "who changed what, when" is answerable and
+/// a previous version can be restored.
+///
+/// A separate table rather than a JSON column on ProjectSection: the history of
+/// a nine-section project over a semester is hundreds of rows, and a growing
+/// JSON blob rewritten on every autosave is the shape that turns a 200ms save
+/// into a 2s one somewhere around week six.
+model ProjectSectionVersion {
+  id        String      @id @default(cuid(2))
+  sectionId String
+  /// Denormalised so a version survives its section being deleted and recreated,
+  /// and so history can be queried per project without a join.
+  projectId String
+  kind      SectionKind
+  body      String
+  wordCount Int         @default(0)
+  editorId  String?
+  /// Monotonic per section, starting at 1.
+  version   Int
+
+  createdAt DateTime @default(now())
+
+  section ProjectSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  editor  User?          @relation(fields: [editorId], references: [id], onDelete: SetNull)
+
+  @@unique([sectionId, version])
+  @@index([projectId, createdAt])
 }
 
 model ProjectMember {

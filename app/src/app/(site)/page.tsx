@@ -17,7 +17,7 @@ import { Badge, Card } from "@/components/ui/display";
 import { Accordion } from "@/components/ui/overlay";
 import { siteConfig } from "@/config/site";
 import { generalFaqs } from "@/content/faqs";
-import { publicProjects } from "@/content";
+import { publicProjects } from "@/lib/db/queries/public-projects";
 import { JsonLd, faqPage, organization, website } from "@/lib/seo/jsonld";
 import { buildMetadata } from "@/lib/seo/metadata";
 
@@ -79,8 +79,8 @@ const QUESTIONS = [
   },
 ];
 
-export default function Home() {
-  const featured = publicProjects().slice(0, 3);
+export default async function Home() {
+  const featured = (await publicProjects()).slice(0, 3);
 
   return (
     <>

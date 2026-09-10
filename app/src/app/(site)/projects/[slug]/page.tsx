@@ -24,14 +24,14 @@ import { CopyButton } from "@/components/ui/combobox";
 import { DOMAIN_BY_KEY, SDG_BY_NUMBER, TOPIC_BY_SLUG, sdgPath } from "@/config/taxonomy";
 import { collegeBySlug } from "@/content/colleges";
 import { personByUsername } from "@/content/people";
-import { projects } from "@/content/projects";
+import { projectVisibility } from "@/content";
 import {
   descendantCount,
   publicLineage,
   publicProject,
-  projectVisibility,
+  publicProjectCorpus,
   relatedProjects,
-} from "@/content";
+} from "@/lib/db/queries/public-projects";
 import { SECTION_LABEL } from "@/content/types";
 import { JsonLd, breadcrumbList, creativeWork } from "@/lib/seo/jsonld";
 import { buildMetadata, ensureDescription } from "@/lib/seo/metadata";
@@ -53,16 +53,17 @@ import { buildMetadata, ensureDescription } from "@/lib/seo/metadata";
 
 export const dynamicParams = false;
 
-export function generateStaticParams() {
-  // Pre-render only what is publicly readable. A private project has no page.
-  return projects
-    .filter((p) => projectVisibility(p).publiclyReadable)
-    .map((p) => ({ slug: p.slug }));
+export async function generateStaticParams() {
+  // The corpus is already `visibleTo(ANONYMOUS)`, so there is no second filter
+  // here — adding one would be a second place deciding what is public, and the
+  // two would eventually disagree.
+  const corpus = await publicProjectCorpus();
+  return corpus.map((project) => ({ slug: project.slug }));
 }
 
 export async function generateMetadata(props: PageProps<"/projects/[slug]">): Promise<Metadata> {
   const { slug } = await props.params;
-  const project = publicProject(slug);
+  const project = await publicProject(slug);
   if (!project)
     return buildMetadata({
       title: "Project not found",
@@ -101,15 +102,17 @@ export async function generateMetadata(props: PageProps<"/projects/[slug]">): Pr
 
 export default async function ProjectPage(props: PageProps<"/projects/[slug]">) {
   const { slug } = await props.params;
-  const project = publicProject(slug);
+  const project = await publicProject(slug);
   if (!project) notFound();
 
   const resolved = projectVisibility(project);
   const college = collegeBySlug[project.collegeSlug];
   const domain = DOMAIN_BY_KEY[project.domain];
-  const { parents, children } = publicLineage(project);
-  const related = relatedProjects(project);
-  const builtOn = descendantCount(project.slug);
+  const [{ parents, children }, related, builtOn] = await Promise.all([
+    publicLineage(project),
+    relatedProjects(project),
+    descendantCount(project.slug),
+  ]);
 
   const crumbs = [
     { label: "Explore", href: "/explore" },

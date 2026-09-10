@@ -1,4 +1,5 @@
 import { colleges, collegeBySlug } from "@/content/colleges";
+import { descendantsOf, lineageOf, relatedTo, techStackIn, yearsIn } from "@/content/derive";
 import { ideas } from "@/content/ideas";
 import { articles } from "@/content/knowledge";
 import { people, personByUsername } from "@/content/people";
@@ -109,76 +110,32 @@ export function ideasByPerson(username: string) {
 }
 
 /**
- * Public lineage of a project: its readable parents and children.
+ * The derived views, over the fixture corpus.
  *
- * A parent that is private is omitted rather than shown as a broken link — the
- * lineage is real, but a visitor has no business learning that a private
- * project exists.
+ * The logic lives in `content/derive.ts` and is shared with
+ * `queries/public-projects.ts`, which calls the same functions with rows
+ * adapted to the same shape. One implementation, two sources.
  */
 export function publicLineage(project: Project, now = new Date()) {
-  const parents = (project.buildsOn ?? [])
-    .map((link) => {
-      const parent = publicProject(link.slug, now);
-      return parent ? { project: parent, kind: link.kind, note: link.note } : null;
-    })
-    .filter((x): x is NonNullable<typeof x> => x !== null);
-
-  const children = publicProjects(now)
-    .filter((candidate) => candidate.buildsOn?.some((b) => b.slug === project.slug))
-    .map((child) => {
-      const link = child.buildsOn!.find((b) => b.slug === project.slug)!;
-      return { project: child, kind: link.kind, note: link.note };
-    });
-
-  return { parents, children };
+  return lineageOf(project, publicProjects(now));
 }
 
 /** Descendant count, for the "N groups have built on this" signal. */
-export function descendantCount(slug: string, now = new Date(), seen = new Set<string>()): number {
-  if (seen.has(slug)) return 0;
-  seen.add(slug);
-  const children = publicProjects(now).filter((p) => p.buildsOn?.some((b) => b.slug === slug));
-  return children.reduce((total, child) => total + 1 + descendantCount(child.slug, now, seen), 0);
+export function descendantCount(slug: string, now = new Date()): number {
+  return descendantsOf(slug, publicProjects(now));
 }
 
-/**
- * Related projects — shared topics and SDGs, excluding the same project and
- * anything already in its lineage.
- *
- * Deterministic and explainable. Phase 11 replaces this with trigram similarity
- * over the real corpus; the signature stays the same.
- */
+/** Related projects — shared topics and SDGs, excluding the project's own lineage. */
 export function relatedProjects(project: Project, limit = 3, now = new Date()): Project[] {
-  const lineageSlugs = new Set([
-    project.slug,
-    ...(project.buildsOn ?? []).map((b) => b.slug),
-    ...publicLineage(project, now).children.map((c) => c.project.slug),
-  ]);
-
-  return publicProjects(now)
-    .filter((candidate) => !lineageSlugs.has(candidate.slug))
-    .map((candidate) => {
-      const sharedTopics = candidate.topics.filter((t) => project.topics.includes(t)).length;
-      const sharedSdgs = candidate.sdgs.filter((s) => project.sdgs.includes(s)).length;
-      const sameDomain = candidate.domain === project.domain ? 1 : 0;
-      return { candidate, score: sharedTopics * 3 + sharedSdgs * 2 + sameDomain };
-    })
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => b.score - a.score || a.candidate.slug.localeCompare(b.candidate.slug))
-    .slice(0, limit)
-    .map((entry) => entry.candidate);
+  return relatedTo(project, publicProjects(now), limit);
 }
 
 /** Every year that has a public project, newest first — an explore facet. */
 export function projectYears(now = new Date()): number[] {
-  const years = new Set(
-    publicProjects(now).map((p) => new Date(p.publishedOn ?? p.startedOn).getFullYear()),
-  );
-  return [...years].sort((a, b) => b - a);
+  return yearsIn(publicProjects(now));
 }
 
 /** Distinct tech stack entries across public projects — an explore facet. */
-export function techStackOptions(now = new Date()): string[] {
-  const stack = new Set(publicProjects(now).flatMap((p) => p.techStack));
-  return [...stack].sort();
+export function projectTechStack(now = new Date()): string[] {
+  return techStackIn(publicProjects(now));
 }

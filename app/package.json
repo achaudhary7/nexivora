@@ -12,6 +12,7 @@
     "check:chart-palette": "node scripts/check-chart-palette.mjs",
     "check:contrast": "node scripts/check-contrast.mjs",
     "check:privacy": "node --import ./scripts/test-register.mjs scripts/check-privacy.mjs",
+    "check:project": "node scripts/check-project.mjs",
     "check:seo": "node scripts/check-seo.mjs",
     "check:workspace": "node scripts/check-workspace.mjs",
     "db:deploy": "prisma migrate deploy",

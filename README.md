@@ -34,9 +34,10 @@ Nexivora is **project-first**, not person-first. Four things nobody else builds:
 
 ## Status
 
-**Phase 7 of 20 complete.** The public site (127 indexable pages), the schema and demo world, auth
-and RBAC, the institution backbone, profiles, and the **group workspace with the Contribution
-Ledger** — the differentiator. Next: Phase 8, the project record itself.
+**Phase 8 of 20 complete.** The public site (127 indexable pages), the schema and demo world, auth
+and RBAC, the institution backbone, profiles, the group workspace with the **Contribution Ledger**,
+and the **project record** — nine sections, a role-gated lifecycle, computed progress, the archive
+similarity check and immutable submission snapshots. Next: Phase 9, faculty review and evaluation.
 
 Live status board: [`PROGRESS.md`](PROGRESS.md).
 
@@ -94,6 +95,7 @@ npm run check:auth  # sign-in, gating and sign-out in a real browser
 npm run check:admin # the admin console, end to end
 npm run check:privacy # profile privacy, asserted on the bytes a stranger receives
 npm run check:workspace # the workspace in a real browser — the board BY KEYBOARD, files, ledger
+npm run check:project # the whole project lifecycle in a real browser: create, write, propose
 npm run check:seo   # crawls the sitemap and asserts the whole per-page SEO contract
 npm run bench:import # 500-row import against the 10s budget (rolls back)
 npm run check       # typecheck + lint + format + test + contrast + chart-palette audits

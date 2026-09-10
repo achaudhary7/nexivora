@@ -167,7 +167,12 @@ export async function shortlistSimilarProjects(
                             FROM "ProjectTopic" pt
                             JOIN "Topic" t ON t."id" = pt."topicId"
                            WHERE pt."projectId" = p."id"), ARRAY[]::text[]) AS "topics",
-           p."techStack",
+           -- COALESCE, like topics above. A Prisma scalar list has no database
+           -- default, so a row created without one holds NULL: the client
+           -- normalises that to [] and raw SQL does not. Phase 8 found this the
+           -- hard way, when the first project created through the UI made the
+           -- scorer throw reading a property of null.
+           COALESCE(p."techStack", ARRAY[]::text[]) AS "techStack",
            similarity(p."problemNormalised", ${normalised}) AS "trigramScore"
       FROM "Project" p
      WHERE p."deletedAt" IS NULL

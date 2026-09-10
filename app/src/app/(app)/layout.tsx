@@ -1,7 +1,14 @@
 import { redirect } from "next/navigation";
 
 import { AppShell, type NavEntry } from "@/components/layout/app-shell";
-import { FeedIcon, GroupIcon, HomeIcon, ProjectIcon, SettingsIcon } from "@/components/icons";
+import {
+  FacultyIcon,
+  FeedIcon,
+  GroupIcon,
+  HomeIcon,
+  ProjectIcon,
+  SettingsIcon,
+} from "@/components/icons";
 import { ROLE_LABEL } from "@/config/roles";
 import { currentViewer } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
@@ -39,6 +46,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     { label: "Feed", href: "/feed", icon: <FeedIcon /> },
     { label: "Projects", href: "/my/projects", icon: <ProjectIcon /> },
     { label: "Groups", href: "/groups", icon: <GroupIcon /> },
+    // Faculty only: the proposal queue is scoped to subjects they teach, so an
+    // entry for anybody else would lead to an empty page.
+    ...(viewer.teaches.length > 0
+      ? [{ label: "Proposals", href: "/faculty/proposals", icon: <FacultyIcon /> }]
+      : []),
     { label: "Settings", href: "/settings/account", icon: <SettingsIcon /> },
   ];
 

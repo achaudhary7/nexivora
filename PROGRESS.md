@@ -1,6 +1,6 @@
 # PROGRESS — Nexivora Live Status Board
 
-**Last updated:** 2026-09-10 · **Current phase:** Phase 8 — Project Lifecycle & Pages
+**Last updated:** 2026-09-10 · **Current phase:** Phase 9 — Faculty Review & Evaluation
 
 > This file is the source of truth for *where we are*. Update it at the end of every work session.
 > Detail lives in `docs/phases/`; this is the dashboard.
@@ -19,8 +19,8 @@ Phase  4  ███████████████████████�
 Phase  5  ██████████████████████████  ✅ Complete
 Phase  6  ██████████████████████████  ✅ Complete
 Phase  7  ██████████████████████████  ✅ Complete
-Phase  8  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started   <- next
-Phase  9  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
+Phase  8  ██████████████████████████  ✅ Complete
+Phase  9  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started   <- next
 Phase 10  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
 Phase 11  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
 Phase 12  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
@@ -39,7 +39,7 @@ Phase 18  ░░░░░░░░░░░░░░░░░░░░░░░�
 Phase 19  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
 ```
 
-**Completed:** 8 / 20 phases · **MVP progress:** 8 / 13 phases
+**Completed:** 9 / 20 phases · **MVP progress:** 9 / 13 phases
 
 ---
 
@@ -55,8 +55,8 @@ Phase 19  ░░░░░░░░░░░░░░░░░░░░░░░�
 | 5 | Institution Backbone | ✅ Complete | 2026-09-09 | 2026-09-09 | ✅ | [spec](docs/phases/phase-05-institution.md) |
 | 6 | Profiles & Academic Identity | ✅ Complete | 2026-09-09 | 2026-09-09 | ✅ | [spec](docs/phases/phase-06-profiles.md) |
 | 7 | Groups & Project Workspace | ✅ Complete | 2026-09-10 | 2026-09-10 | ✅ | [spec](docs/phases/phase-07-workspace.md) |
-| 8 | Project Lifecycle & Pages | 🟦 Next | — | — | ⬜ | [spec](docs/phases/phase-08-project-lifecycle.md) |
-| 9 | Faculty Review & Evaluation | ⬜ Not Started | — | — | ⬜ | [spec](docs/phases/phase-09-faculty.md) |
+| 8 | Project Lifecycle & Pages | ✅ Complete | 2026-09-10 | 2026-09-10 | ✅ | [spec](docs/phases/phase-08-project-lifecycle.md) |
+| 9 | Faculty Review & Evaluation | 🟦 Next | — | — | ⬜ | [spec](docs/phases/phase-09-faculty.md) |
 | 10 | Academic Feed & Notifications | ⬜ Not Started | — | — | ⬜ | [spec](docs/phases/phase-10-feed.md) |
 | 11 | Discovery, Ideas & Matching | ⬜ Not Started | — | — | ⬜ | [spec](docs/phases/phase-11-discovery.md) |
 | 12 | Showcase, Archive & Portfolio | ⬜ Not Started | — | — | ⬜ | [spec](docs/phases/phase-12-showcase-archive.md) |
@@ -73,6 +73,72 @@ Phase 19  ░░░░░░░░░░░░░░░░░░░░░░░�
 ## Session log
 
 Append one entry per working session. Newest first.
+
+### 2026-09-10 — Session 11
+
+**Phase 8 complete.** The project record, the lifecycle, and the swap of every public project page
+onto the database.
+
+- **The public swap changed nothing observable, which was the whole bar.** Seven pages and the
+  sitemap now read rows; `check:seo` returns **127 pages, 247 JSON-LD blocks, 127 unique titles —
+  identical to the pre-swap baseline**. What made it a swap rather than a rewrite is **ADR-042**: the
+  derived views — lineage, related work, the explore facets — moved to `content/derive.ts` as pure
+  functions over a corpus you supply, so the fixtures and the database call **the same
+  implementation**. Writing a database version of "related projects" is how two of them end up
+  disagreeing about what related means.
+- **`check:project` found a real bug on its first run, against a criterion I had written casually.**
+  "Progress starts at 0%" — a brand-new project opened at **26%**. A group may own more than one
+  project, and the seed contains one that does, so the new project was inheriting its sibling's
+  eighteen closed tasks. Tasks now count only through **that project's own milestones**
+  (**ADR-041**), which also gives the spec's own phrase — *"a milestone links to the tasks that
+  constitute it"* — something to mean.
+- **The Prisma client and raw SQL disagree about a scalar list, and it cost an hour** (**ADR-043**).
+  The similarity check threw `Cannot read properties of null` the first time it ran against a
+  project created through the *interface* rather than the seed. `Project.techStack` is `String[]`;
+  Prisma's client returns `[]` when the column holds `NULL`, so every typed read looks fine — but
+  **Prisma gives scalar lists no database default**, so a row created without the field really does
+  store `NULL`. Phase 3's raw query already coalesced the topics subquery and did not coalesce this
+  one. Fixed on both sides: `COALESCE` in the SQL, explicit `[]` on the write.
+  - Worth naming: this is the **second** defect found only by exercising a path the seed does not
+    produce. The seed is a good demo world and a poor adversary.
+- **The lifecycle is a table, and the refusal is the feature.** Nine states, thirteen edges, the
+  actor each requires. `moveProject` asks two separate questions in order — *is this move legal*,
+  then *may you make it* — because conflating them produces "you cannot do that" when the honest
+  answer is "nobody can do that yet, and here is why". A blocked submission names every incomplete
+  section, every open milestone and every person who still owes a peer review, **all at once**: a
+  submission blocked one reason at a time is the shape that makes people submit at 3am and blame
+  the tool.
+- **`[slug]`, not `[id]`, under `/projects`** — forced by Next, which refuses two different dynamic
+  names at the same route position, and better anyway. `SITEMAP.md` is corrected.
+- **Section guidance is the highest-value thing in the phase and it is thirty lines of
+  configuration** (**ADR-044**). Each section carries a prompt, two or three questions and a real
+  example, sitting beside the textarea permanently. The questions are the load-bearing part: a
+  student who answers "Who has this problem, specifically?" has written a problem statement whether
+  or not they knew how to start one.
+- **Looking at the screenshots found a defect every check had passed** (process lesson 1, again).
+  The editor shell sat at `[slug]/edit/`, so the tabs it renders linked to Milestones, Proposal and
+  Submit — three pages that then rendered **without the tabs**. Every link navigated the user out of
+  the navigation. Moved to `[slug]/`; the public page is in `(site)` and unaffected.
+- **Two test-side failures that were mine, not the product's**: the sample problem statement was 38
+  words against a 60-word completeness floor, so the toggle was correctly disabled; and the
+  `/explore` assertion looked for "Explore", which appears only in the `<title>` that `innerText`
+  does not include.
+- **The migration was two things the schema lacked**: `Project.coverUrl` (Phase 7's hand-off) and
+  `ProjectSectionVersion`, because "restore a previous version" needs versions to exist. A separate
+  table rather than a JSON column — a growing blob rewritten on every autosave is what turns a 200ms
+  save into a 2s one around week six.
+- Verified: `npm run check` clean (**425 tests**), build clean, `check:project` **17/17**,
+  `check:seo` **127/127 unchanged**, `check:workspace` 25/25, `check:auth` 12/12, `check:admin`
+  15/15, `check:privacy` 11/11, `db:verify` 26/26.
+- **Not done and not claimed:** no per-section attachments (the group file library is one click
+  away and a second copy would diverge); the soft lock is implemented and **not verified with two
+  simultaneous browsers**; task-to-milestone linking stays on the Phase 7 board; the submission
+  receipt has a digest but is not a downloadable file (that is a PDF, and `lib/pdf/` is Phase 15);
+  and the editor uses `Badge` rather than `StatusPill`, because that component takes Phase 2's
+  seven-value status and the editor needs all nine.
+- **Next:** Phase 9 — faculty review and evaluation. It consumes `groupHealth()` from Phase 7 and
+  `riskSignals()` from this phase, and must add its edges to the transition table rather than
+  bypassing it.
 
 ### 2026-09-10 — Session 10
 

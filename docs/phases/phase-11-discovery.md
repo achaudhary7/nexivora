@@ -23,6 +23,20 @@ waste a phase is to rebuild something the previous one shipped.*
 - **`src/config/taxonomy.ts` is seeded into `Topic` and `Sdg`** — 24 topics, 17 goals. It
   remains the single definition; the tables exist for joins and counts.
 
+## What Phase 8 already provides
+
+*Added 2026-09-10, when Phase 8 completed.*
+
+- **The public project corpus reads the database** (`queries/public-projects.ts`), and the derived
+  views are pure functions over it in `content/derive.ts` (ADR-042).
+- **`relatedTo()` is the function to replace.** It scores shared topics, SDGs and domain today;
+  swapping in trigram similarity changes **one function in one file**, and both the fixture and
+  database paths get it. The signature stays.
+- **`shortlistSimilarProjects()` + `scoreSimilarity()` are already wired** to the proposal flow and
+  asserted against the seeded near-duplicate. Discovery reuses them rather than re-deriving.
+- **Any raw query over a scalar list needs `COALESCE`** (ADR-043) — the client and raw SQL disagree
+  about `NULL`.
+
 ## Objective
 
 Make everything on the platform findable, and make forming a team a solved problem rather than a

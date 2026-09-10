@@ -1185,3 +1185,141 @@ fail our own validator is a trap for whoever next tests uploading using a seeded
 - **The general lesson, which cost the most time here:** a denial suite without a positive control
   proves nothing (process lesson 9). This is the second time that rule has earned its place, and the
   first time it caught a defect in the *fixture* rather than in the policy.
+
+---
+
+## ADR-041 — Progress counts tasks only through the project's own milestones
+
+**Status.** Accepted · Phase 8 · 2026-09-10
+
+**Context.** Progress is computed from three components — sections written, milestones closed, tasks
+finished. The obvious source for the third is the owning group's task board, and that is what the
+first implementation used.
+
+`check:project` failed on its first run against a criterion I had written casually: *"progress
+starts at 0%"*. A brand-new project with nothing written opened at **26%**.
+
+The reason is a fact about the data model that is easy to forget: **a group may own more than one
+project**, and the seed contains one that does. A newly created project was inheriting the sibling
+project's eighteen closed tasks.
+
+**Decision.** A task counts toward a project only when it is linked to one of **that project's**
+milestones. Tasks sitting on the group board without a milestone are work the group did; they are
+not evidence about this particular project.
+
+The consequence is deliberate and worth stating: a project with no milestones has **no task
+component at all**, and `computeProgress` redistributes that weight across sections and milestones.
+A group that has not adopted milestones is scored on what it has, not penalised for what it has not.
+
+**Consequences.**
+
+- It gives *"a milestone links to the tasks that constitute it"* — the phase spec's own wording —
+  something to mean. Linking a task is now the act that makes it count.
+- Progress on a fresh project is 0%, and the first section written moves it to 14%. Both numbers are
+  now about the project rather than about its neighbours.
+- The honest cost: a group that runs one project and never uses milestones sees progress driven
+  entirely by sections. That is the correct answer for them, and the weighting handles it.
+
+---
+
+## ADR-042 — Derived project views are pure functions over a corpus, not per-source implementations
+
+**Status.** Accepted · Phase 8 · 2026-09-10
+
+**Context.** ADR-030 assigns the public project pages' swap to this phase. Seven pages and the
+sitemap read `publicProjects()`, `projectsByTopic()`, `relatedProjects()`, `publicLineage()`,
+`descendantCount()` and `projectYears()` from `src/content/index.ts`.
+
+Each of those was written in Phase 2 as a function that internally called `publicProjects()` — right
+while the fixtures were the only source. Giving them a second source invites writing a database
+version of each, which is how two implementations of *"related projects"* end up disagreeing about
+what related means.
+
+**Decision.** The logic moved to `src/content/derive.ts` and takes its corpus as a parameter.
+`content/index.ts` calls it with the fixtures; `queries/public-projects.ts` calls it with rows
+adapted to the same `Project` shape. **One implementation, two sources.**
+
+`src/content/types.ts` stays the contract in both directions, which is what it has been since Phase
+2 and what makes the adapter approach (ADR-032) work at all.
+
+**Consequences.**
+
+- The swap was seven one-line import changes plus `await`. No component was touched.
+- **`check:seo` returned 127 pages, 247 JSON-LD blocks, 127 unique titles — byte-identical to the
+  pre-swap baseline.** That is what turns "no rendered page changed" into evidence.
+- `publicProjectCorpus()` is wrapped in React's `cache()`, because a project page reads the corpus
+  four times — itself, its lineage, its related work, its descendant count. Four identical queries
+  per render is the shape that makes a page mysteriously slow, and threading an array through every
+  helper would have changed the signatures the swap exists to preserve.
+- Phase 11 replaces `relatedTo`'s scoring with trigram similarity. It changes one function, in one
+  file, for both sources.
+
+---
+
+## ADR-043 — A Prisma scalar list has no database default, and raw SQL sees the difference
+
+**Status.** Accepted · Phase 8 · 2026-09-10
+
+**Context.** The similarity check threw `Cannot read properties of null (reading 'map')` the first
+time it ran against a project created through the interface rather than the seed.
+
+`Project.techStack` is `String[]`. Prisma's client returns `[]` for such a column when it holds
+`NULL`, so every typed read looks fine and the type system reports nothing. But **Prisma does not
+give scalar list columns a database default** — `information_schema` shows `column_default: null,
+is_nullable: YES` — so a row created without setting the field genuinely stores `NULL`.
+
+`shortlistSimilarProjects` is raw SQL, because it needs `pg_trgm`. Raw SQL returns the `NULL`. The
+scorer then called a method on it.
+
+Phase 3's query already had the answer for the adjacent case: it `COALESCE`s the topics subquery.
+It did not coalesce `techStack`, and nothing revealed that until a project existed that the seed had
+not made.
+
+**Decision.** Both halves, because either alone leaves the trap set.
+
+1. `shortlistSimilarProjects` coalesces `techStack` the way it already coalesced topics. Every raw
+   query over a scalar list must do this.
+2. `createProject` writes `techStack: []` and `keywords: []` explicitly, so the `NULL` never exists
+   in a row this product creates.
+
+**Consequences.**
+
+- The general rule, which belongs in `CONTEXT.md` and now is: **the Prisma client and raw SQL
+  disagree about a scalar list.** Anywhere the two touch the same column, the raw side needs a
+  `COALESCE` and the write side needs an explicit `[]`.
+- This is the second time a defect has been found only by exercising a path the seed does not
+  produce. The seed is a good demo world and a poor adversary; the browser check is what supplies
+  rows nobody designed.
+
+---
+
+## ADR-044 — Section guidance ships with the section, not in a help article
+
+**Status.** Accepted · Phase 8 · 2026-09-10
+
+**Context.** The phase spec calls per-section guidance *"worth more than it looks"* and identifies
+the blank page as the real obstacle to good project documentation. That is a claim about people
+rather than software, and it is correct: most students have never written a methodology section and
+have no model of what one contains.
+
+**Decision.** `config/sections.ts` carries, for each of the nine sections, a one-sentence `prompt`,
+two or three `asks`, and a real `example`. All three sit **beside the textarea, permanently** — not
+behind a tooltip, an info icon or a link to documentation.
+
+The `asks` are the load-bearing part. A student who answers "Who has this problem, specifically?",
+"What do they do about it now, and why is that inadequate?" and "How would you know if it were
+solved?" has written a problem statement, whether or not they knew how to start one.
+
+`example` is a real sentence rather than a template with blanks. A template produces fill-in-the-blank
+prose; a concrete example communicates register and the expected level of specificity.
+
+**Consequences.**
+
+- Guidance you have to go looking for is guidance for people who already know what they are doing,
+  so it is not hidden.
+- `minWords` is a floor for **completeness**, never a target, and is set low deliberately — a tight
+  80-word problem statement beats a padded 300-word one, and a floor that rewarded length would
+  produce padding. Its only job is to make "complete" mean something when progress is computed.
+- Four of the nine sections are optional (`PROTOTYPE`, `FUTURE_WORK` among them), because not every
+  project builds a prototype and a submission gate that demanded one would be lying about what the
+  work requires.

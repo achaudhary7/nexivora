@@ -5,7 +5,7 @@ import { Container, PageHeader } from "@/components/layout/primitives";
 import { Card } from "@/components/ui/display";
 import { Breadcrumbs } from "@/components/ui/navigation";
 import { SDGS, sdgPath } from "@/config/taxonomy";
-import { projectsBySdg } from "@/content";
+import { publicProjectCorpus } from "@/lib/db/queries/public-projects";
 import { JsonLd, breadcrumbList, itemList } from "@/lib/seo/jsonld";
 import { buildMetadata } from "@/lib/seo/metadata";
 
@@ -16,7 +16,11 @@ export const metadata: Metadata = buildMetadata({
   path: "/sdg",
 });
 
-export default function SdgIndexPage() {
+export default async function SdgIndexPage() {
+  // One corpus read; seventeen goals counted from it.
+  const corpus = await publicProjectCorpus();
+  const countFor = (goal: number) => corpus.filter((project) => project.sdgs.includes(goal)).length;
+
   const crumbs = [{ label: "SDG showcase", href: "/sdg" }];
 
   return (
@@ -53,7 +57,7 @@ export default function SdgIndexPage() {
 
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {SDGS.map((sdg) => {
-            const count = projectsBySdg(sdg.number).length;
+            const count = countFor(sdg.number);
             return (
               <Card key={sdg.number} interactive className="relative flex gap-4 p-5">
                 <span

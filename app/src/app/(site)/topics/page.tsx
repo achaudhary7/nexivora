@@ -5,7 +5,7 @@ import { Container, PageHeader } from "@/components/layout/primitives";
 import { Card } from "@/components/ui/display";
 import { Breadcrumbs } from "@/components/ui/navigation";
 import { DOMAINS, SUBTOPICS } from "@/config/taxonomy";
-import { projectsByTopic } from "@/content";
+import { publicProjectCorpus } from "@/lib/db/queries/public-projects";
 import { JsonLd, breadcrumbList, definedTermSet } from "@/lib/seo/jsonld";
 import { buildMetadata } from "@/lib/seo/metadata";
 
@@ -16,7 +16,14 @@ export const metadata: Metadata = buildMetadata({
   path: "/topics",
 });
 
-export default function TopicsPage() {
+export default async function TopicsPage() {
+  // Counted from a single corpus read rather than one query per domain — the
+  // per-domain call inside the loop below would have been eight round trips
+  // for a page that needs one.
+  const corpus = await publicProjectCorpus();
+  const countFor = (slug: string) =>
+    corpus.filter((project) => project.topics.includes(slug)).length;
+
   const crumbs = [{ label: "Topics", href: "/topics" }];
 
   return (
@@ -41,7 +48,7 @@ export default function TopicsPage() {
 
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {DOMAINS.map((domain) => {
-            const count = projectsByTopic(domain.slug).length;
+            const count = countFor(domain.slug);
             const children = SUBTOPICS.filter((t) => t.parent === domain.slug);
             return (
               <Card key={domain.slug} interactive className="relative p-5">

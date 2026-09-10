@@ -21,6 +21,19 @@
   writing a second CSV writer — `errorReportCsv()` in `lib/import/people.ts` shows the escaping
   the export will need.
 
+## What Phase 8 already provides
+
+*Added 2026-09-10, when Phase 8 completed.*
+
+- **The accreditation export's source data is now real.** Projects, sections, SDG alignment,
+  milestones, status history and submissions are all database rows created through the interface.
+- **`ProjectStatusEvent` is a complete audit trail** — actor, timestamp and reason for every
+  transition, written in the same transaction as the change.
+- **Progress and risk are computed** (`lib/project/progress.ts`), so a report never has to trust a
+  stored percentage.
+- **The submission receipt has a digest but is not a downloadable file.** `lib/pdf/` is this
+  phase's; the receipt is the obvious first thing to render through it.
+
 ## Objective
 
 Turn the data the platform has been accumulating into the thing an institution will actually pay

@@ -56,6 +56,28 @@ waste a phase is to rebuild something the previous one shipped.*
   them; the faculty view is a different presentation of the same numbers, not a different
   calculation.
 
+## What Phase 8 already provides
+
+*Added 2026-09-10, when Phase 8 completed.*
+
+- **`attemptTransition()` in `lib/project/lifecycle.ts` is the only place a status change is
+  decided.** Evaluation adds edges to that table; it does not bypass it. `UNDER_REVIEW →
+  IN_PROGRESS` (request changes) and `UNDER_REVIEW → COMPLETED` already exist and are faculty-gated.
+- **`/faculty/proposals` exists** — the approval queue, scoped to subjects the viewer teaches, with
+  approve / request-changes / reject and the similarity override. Build the dashboard **around** it;
+  a second approval path would mean two places deciding what "approved" means.
+- **`riskSignals()` in `lib/project/progress.ts` is written and unit-tested** — slipped milestones,
+  a stalled project, and the specific shape worth flagging: a closed board with an unwritten record.
+  Same discipline as Phase 7's `groupHealth()`: states what the data shows, concludes nothing.
+- **Progress is computed, never stored.** `computeProgress()` is pure. That is the reason the
+  dashboard is worth opening.
+- **`ProjectSubmission` holds a byte-stable snapshot per round.** Evaluate the snapshot, not the
+  live record — the live record can move underneath you the moment faculty request changes.
+- **Only Phase 9 may write `ProofTier.FACULTY_ATTESTED`.** Phase 8 writes `SELF`; the ledger
+  derives `WORKSPACE_EVIDENCED`.
+- **`requireEditableProject()` returns the project to faculty too**, with `capabilities()`
+  separating "can open" from "can edit". Reuse it rather than writing a review-only loader.
+
 ## Objective
 
 Build the surface that determines whether this product is adopted at all. **Faculty are the

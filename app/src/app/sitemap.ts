@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
 
 import { DOMAINS, SDGS, SUBTOPICS, sdgPath } from "@/config/taxonomy";
-import { publicArticles, publicIdeas, publicProjects } from "@/content";
+import { publicArticles, publicIdeas } from "@/content";
+import { publicProjects } from "@/lib/db/queries/public-projects";
 import { publicOpportunities } from "@/content/opportunities";
 import { helpArticles } from "@/content/site";
 import { legalDocuments } from "@/content/legal";
@@ -75,7 +76,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     entry("/roadmap", staticUpdated, "monthly", 0.4),
   ];
 
-  const projectPages = publicProjects().map((project) =>
+  const projectPages = (await publicProjects()).map((project) =>
     entry(
       `/projects/${project.slug}`,
       project.publishedOn ?? project.completedOn ?? project.startedOn,

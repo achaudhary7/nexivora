@@ -156,7 +156,7 @@ Nexivora/
 
 ## 8a. What earlier phases already built — read before starting any phase
 
-Phases 0–7 are complete. These are the things a future session most often re-invents or contradicts.
+Phases 0–8 are complete. These are the things a future session most often re-invents or contradicts.
 
 ### Commands that already exist
 
@@ -173,6 +173,7 @@ Phases 0–7 are complete. These are the things a future session most often re-i
 | `npm run check:privacy` | Profile privacy asserted on the bytes a logged-out visitor receives. |
 | `npm run bench:import` | 500-row import against the 10s acceptance budget. Rolls back. |
 | `npm run check` | typecheck (both tsconfigs) + lint + format + **test** + contrast. **The gate.** Works with nothing running. |
+| `npm run check:project` | Drives a real browser through the whole lifecycle: create, write, autosave, similarity check, propose. **17/17.** Needs a running server. Creates real projects — `db:reset` clears them. |
 | `npm run check:workspace` | Drives a real browser through the workspace: the board **by keyboard with no drag**, the file route, the ledger, the avatar upload. **25/25.** Needs a running server. |
 | `npm run check:chart-palette` | The six colour-vision checks over the `--color-series-*` tokens, in both themes. In `npm run check`. |
 | `npm run check:seo` | Crawls the sitemap and asserts the whole per-page SEO contract. **Needs a running server.** Found 191 real defects on its first run. |
@@ -304,6 +305,35 @@ Phases 0–7 are complete. These are the things a future session most often re-i
   menu is the primary path; the native drag events are the enhancement. This is why no drag library
   is installed.
 
+- **`attemptTransition()` in `lib/project/lifecycle.ts` is the only place a status change is
+  decided.** Nine states, thirteen edges, the actor each requires. Add edges to the table; never
+  bypass it. It answers *is this move legal*; `can()` separately answers *may you make it*, and
+  conflating the two produces "you cannot do that" when the honest answer is "nobody can yet".
+- **A refusal names what is missing, in full.** Every incomplete section, every open milestone,
+  every person who still owes a peer review — all at once, never one at a time.
+- **`requireEditableProject(viewer, slug)` is the project gate**, and it returns the project for
+  faculty too. "Can open" and "can edit" are separate: `capabilities(viewer, project)` answers the
+  second, entirely through `can()`.
+- **Progress and risk are computed, never stored** (`lib/project/progress.ts`). There is no
+  `project.progress` column to go stale. A task counts toward a project **only through that
+  project's own milestones** (ADR-041) — a group may own more than one project.
+- **The submission snapshot is byte-stable** (`lib/project/snapshot.ts`). Keys sorted at every
+  depth, every collection sorted by a declared key, and **no computed field** — a stored percentage
+  would be a second copy that can disagree with the first.
+- **Section guidance lives in `config/sections.ts`** and renders beside the textarea, never behind a
+  tooltip (ADR-044). `minWords` is a completeness floor, never a target.
+- **The derived project views are pure functions over a corpus** (`content/derive.ts`, ADR-042).
+  Fixtures and the database call the same `lineageOf`, `relatedTo`, `yearsIn`. Never write a
+  second implementation for a new source.
+- **`publicProjectCorpus()` is wrapped in React `cache()`** — a project page reads it four times
+  (itself, lineage, related, descendants) and four identical queries per render is how a page gets
+  mysteriously slow.
+- **`[slug]`, not `[id]`, under `/projects`.** Next refuses two different dynamic segment names at
+  the same position, and `/projects/[slug]` is the public page. A slug is assigned once at creation
+  and **never regenerated** — it is a public URL other people cite.
+- **The project shell lives at `(app)/projects/[slug]/layout.tsx`**, not under `edit/`, so its tabs
+  appear on the pages they link to. The public page is in `(site)` and is unaffected.
+
 ### Framework facts that fail silently if forgotten
 
 - **Next 16 renamed Middleware to Proxy.** The file is `src/proxy.ts`. A `middleware.ts` is
@@ -311,6 +341,14 @@ Phases 0–7 are complete. These are the things a future session most often re-i
 - **`params` and `searchParams` are Promises.** So are the params in `sitemap` and image generators.
   Use `next typegen` and the `PageProps<'/route'>` helpers.
 - **`next lint` and the `eslint` key in `next.config.ts` are gone.**
+- **A Prisma scalar list has NO database default and raw SQL sees the difference** (ADR-043). The
+  client returns `[]` for a `String[]` column holding `NULL`, so typed reads look fine — but a row
+  created without setting the field really stores `NULL`, and `$queryRaw` returns it. Any raw query
+  over a scalar list needs `COALESCE`; any write needs an explicit `[]`.
+- **Next refuses two different dynamic segment names at the same route position.** `[id]` in one
+  route group and `[slug]` in another, at the same depth, is a build error — not a warning.
+- **A layout only wraps what is beneath it.** A shell rendering tabs must sit above every page those
+  tabs link to, or the links navigate the user out of the navigation.
 - **A stale `next start` is not killed by `pkill` on Windows.** The rebuild succeeds, the new
   server fails to bind, and the **old build keeps answering on port 3000** — which presents as a
   feature that does not work rather than as a stale server. Use
@@ -419,6 +457,12 @@ Phases 0–7 are complete. These are the things a future session most often re-i
     a fixed code that is unique per college, so it passed exactly once per database and failed on
     every run after — and the *next* assertion masked it by finding the first run's audit entry. A
     check that mutates state must generate everything the schema requires to be unique.
+22. **Exercise the path the seed does not produce.** Two defects in two phases were found only by
+    creating a row through the interface rather than the fixtures — a file with no bytes behind it,
+    and a scalar list stored as NULL. The seed is a good demo world and a poor adversary.
+23. **A criterion written casually is still a criterion.** "Progress starts at 0%" went into the
+    browser check as an afterthought and caught a real bug: a new project inheriting its sibling
+    project's closed tasks. Assert the boring thing.
 
 ---
 

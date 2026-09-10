@@ -31,6 +31,7 @@ const PROTECTED = [
   "/onboarding",
   "/settings",
   "/groups",
+  "/my",
   "/admin",
   "/faculty",
   "/platform",

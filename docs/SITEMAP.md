@@ -86,11 +86,20 @@ Legend — **Access:** Public · Auth · Role-gated. **Index:** ✅ indexable ·
 | `/groups/[id]/meetings` | Group member | 7 |
 | `/groups/[id]/ledger` | Group member, Faculty | 7 |
 | `/groups/[id]/settings` | Group lead | 7 |
-| `/projects/[id]/edit` | Group member | 8 |
-| `/projects/[id]/edit/[section]` | Group member | 8 |
-| `/projects/[id]/milestones` | Group member, Faculty | 8 |
-| `/projects/[id]/submit` | Group lead | 8 |
-| `/projects/[id]/review` | Faculty | 9 |
+| `/projects/[slug]/edit` | Group member | 8 |
+| `/projects/[slug]/edit/[section]` | Group member | 8 |
+| `/projects/[slug]/milestones` | Group member, Faculty | 8 |
+| `/projects/[slug]/submit` | Group lead | 8 |
+| `/projects/[slug]/propose` | Group member, Faculty | 8 |
+| `/my/projects` | Any signed-in user | 8 |
+| `/faculty/proposals` | Faculty | 8 |
+
+> **`[slug]`, not `[id]`, under `/projects`.** Next refuses two different dynamic segment names at
+> the same route position, and `/projects/[slug]` is the public page. A slug is unique and is never
+> regenerated after creation, so it is a stable identifier as well as a readable one. Corrected in
+> Phase 8.
+
+| `/projects/[slug]/review` | Faculty | 9 |
 | `/faculty` | Faculty | 9 |
 | `/faculty/classes`, `/faculty/classes/[id]` | Faculty | 9 |
 | `/faculty/groups` | Faculty | 9 |
