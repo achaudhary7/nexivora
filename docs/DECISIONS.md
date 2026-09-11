@@ -1323,3 +1323,177 @@ prose; a concrete example communicates register and the expected level of specif
 - Four of the nine sections are optional (`PROTOTYPE`, `FUTURE_WORK` among them), because not every
   project builds a prototype and a submission gate that demanded one would be lying about what the
   work requires.
+
+---
+
+## ADR-045 — The group sees the same health signals their faculty guide sees
+
+**Status.** Accepted · Phase 9 · 2026-09-11 · supersedes the visibility note in Phase 7's
+`lib/ledger/health.ts`
+
+**Context.** Phase 7 wrote the signals with a one-line comment saying *"Faculty see these; the group
+does not."* The Phase 9 spec says twice that the group should see them. Both cannot stand, and the
+question is not a matter of taste: it decides whether the feature is a management tool or a working
+one.
+
+**Decision.** The group sees them, at `/groups/[id]/ledger`, computed by the same `groupHealth()`
+call the faculty dashboard uses. Only the **framing** differs, and that difference is data —
+`AUDIENCE_FRAMING` in `lib/ledger/health.ts` supplies a heading and a caveat per audience
+("Needs attention" / "Worth a look"). The signals themselves are identical.
+
+**Why the spec wins.** The ledger those signals are derived from is *already* group-visible
+(ADR-008, and the argument at the top of `groups/[id]/ledger/page.tsx`). Every one of these signals
+can be worked out by hand from events the group can already read. Hiding the summary while showing
+the data therefore buys no confidentiality at all — what it buys is that the group finds out at the
+review instead of in week four, when it was still fixable. That is the opposite of the reason the
+ledger exists.
+
+**Consequences.**
+
+- `lib/db/queries/health.ts` exists so the two views cannot drift: `listSupervisedGroups` computes
+  signals in a batch for fifteen groups, `groupSignals` computes them for one, and both call the
+  same pure function.
+- The group-facing note says out loud that a signal can be wrong about the work, and that the fix is
+  usually to record what you are doing rather than to argue with the number.
+- `severity` stays the same for both audiences. A "warning" softened for the people it is about
+  would be a different claim wearing the same word.
+
+---
+
+## ADR-046 — `HealthInput.active`: finished work is not stalled work
+
+**Status.** Accepted · Phase 9 · 2026-09-11
+
+**Context.** Found by taking a screenshot of `/faculty` and looking at it, which is the only way it
+could have been found: every unit test passed, the query was correct and the arithmetic was right.
+The page showed **four of four groups flagged**, three of them because their project had been
+delivered months earlier and nobody had touched the workspace since.
+
+**Decision.** `groupHealth()` takes `active`, defaulting to `true`. When the group's project is
+`COMPLETED` or `ARCHIVED` it is `false`, and that silences `stalled` and every member-level signal —
+`silent-member`, `imbalance`, `unwritten`. An unresolved blocker and a slipped milestone still fire:
+those are loose ends in the record, and a finished project is exactly when they should be tidied.
+
+**Consequences.**
+
+- A dashboard where everything is flagged ranks nothing, and ranking is the entire value of the
+  panel. Acceptance criterion 1 — *"knows what needs attention today"* — is unachievable without
+  this, however good the signals are individually.
+- The general shape is worth naming: **a signal that fires on the absence of activity needs to know
+  whether activity was still expected.** Absence of evidence means something different after
+  delivery.
+- The flag defaults to active, so an omitted argument never silences a live group. Getting it
+  backwards would be the dangerous failure; this way the failure mode is noise, which is visible.
+
+---
+
+## ADR-047 — The demo world's in-flight activity is rebased on every seed
+
+**Status.** Accepted · Phase 9 · 2026-09-11
+
+**Context.** The seed derives every workspace event from `project.startedOn`, a fixed date in the
+content fixtures. That was fine until Phase 9, which is the first feature to compare seeded data
+against `now`. Real time moved past the fixtures and every group in the demo read as abandoned.
+
+**Decision.** `activityAnchor()` in `prisma/seed/workspace.ts` rebases **in-flight** projects
+(`proposed`, `progress`) onto the last four and ten weeks respectively. **Finished** projects keep
+their real dates: their record is history and should read as history.
+
+**Consequences.**
+
+- Seed output is no longer byte-identical across days — by design, and only in timestamps. The RNG
+  stream, and therefore every id, name and choice, is unchanged.
+- A demo world that ages out from under a time-sensitive feature is not a neutral fixture; it is a
+  fixture that makes the feature look broken. This is the second instance of the Phase 7 lesson that
+  **the seed is a good demo world and a poor adversary** — there it produced zero file bytes, here
+  it produced activity nobody could have acted on.
+- Anything built later that compares seeded data to the clock — reminders, streaks, "active this
+  week" — should use the same anchor rather than inventing a second one.
+
+---
+
+## ADR-048 — `forbidden()` needed a flag nobody had turned on
+
+**Status.** Accepted · Phase 9 · 2026-09-11
+
+**Context.** Twenty-one guards across `/admin`, `/faculty` and `/platform` call `forbidden()`. In
+Next 16 that is still behind `experimental.authInterrupts`, which was never enabled — so every one
+of them threw *"forbidden() is experimental"* and returned a **500** to a person who had simply hit
+a permission boundary.
+
+It survived five phases because it is invisible on the happy path: the guard only runs for a user
+who is actually denied, and that is never the user an end-to-end check signs in as. It surfaced in a
+dev-server log while chasing an unrelated failure.
+
+**Decision.** `experimental: { authInterrupts: true }` in `next.config.ts`, plus
+`src/app/forbidden.tsx` so a 403 is a real page with a real status.
+
+**Consequences.**
+
+- **A 403 and a 404 are not interchangeable, and choosing between them is a privacy decision.**
+  `forbidden()` is for routes whose existence is not itself information — `/admin`, `/faculty`,
+  `/platform`. Anything addressed by a guessable id uses `notFound()`, because a 403 there confirms
+  the thing exists. That rule is why `/faculty/classes/[id]` 404s while `forbidden.tsx` exists.
+- The general lesson, which belongs with the process notes: **a check that only ever signs in as
+  somebody entitled never exercises the refusal path.** `check-faculty.mjs` now asserts both halves
+  of criterion 7 — what faculty cannot do *and* what they deliberately can.
+
+---
+
+## ADR-049 — Released feedback needed somewhere to land
+
+**Status.** Accepted · Phase 9 · 2026-09-11
+
+**Context.** The review screen could mark a rubric, differentiate per member with reasons, write
+comments and release a round. The group would then see exactly nothing: the evaluation existed in
+the database and in no interface, which is the same as not existing. Caught by the end-to-end check
+asserting criterion 9 from the student's seat rather than from the faculty's.
+
+**Decision.** `/projects/[slug]/feedback`, fed by `releasedFeedback()` in
+`lib/db/queries/feedback.ts`. The tab is hidden until a round is released, because a permanently
+empty "Feedback" tab teaches people there is never anything in it.
+
+**The filter is in the query, not the page.** `releasedAt: { not: null }` means an unreleased round
+never leaves the database. A page that loaded every round and filtered in JSX would ship the draft
+into the HTML payload, where it is one View Source away, and every future edit to that page would be
+a chance to reintroduce it. There is deliberately no `includeDrafts` flag for somebody to pass
+`true` by accident.
+
+**Consequences.**
+
+- Every member's reason is shown to the whole group, not only to its subject. The review screen
+  tells the marker "the group sees this" while they write it; this is where that promise is kept. A
+  differentiated mark only its subject can see is unarguable in exactly the wrong way — the person
+  best placed to say "that is not what happened" is the teammate whose share it is compared against.
+- Section notes are **not** gated on release. They are a running conversation about a specific
+  section and the group can act on one the moment it is written; the evaluation is the thing held
+  back until it is finished.
+- The page leads with the outcome, then the comments, then the numbers. A page that leads with a
+  percentage teaches people to read the percentage and stop.
+
+---
+
+## ADR-050 — `/verify` is public, and a revoked attestation still resolves
+
+**Status.** Accepted · Phase 9 · 2026-09-11
+
+**Context.** `attestationCode()` prints `NX-XXXX-XXXX-XXXX` on every attestation and
+`verifyAttestation()` could look one up, but nothing called it. A code on a CV that cannot be
+checked is decoration.
+
+**Decision.** `/verify` in the `(site)` group — no account, no sign-in, a GET form so a verified
+result has its own URL and three candidates can sit in three tabs.
+
+**A revoked attestation still resolves, and says so.** A dead lookup is worse for everybody: the
+reader cannot tell a withdrawn credential from a typo, and the person whose attestation it was gets
+the same suspicion either way.
+
+**Consequences.**
+
+- `verify` joins `RESERVED_USERNAMES`, as every new top-level route must.
+- The alphabet excludes I, L, O and U, and the not-found copy says so — the most likely reason a
+  real code fails to resolve is that somebody typed a 1 as an l.
+- The seed was issuing `NXV-ATT-0001`, which `isAttestationCode()` rejects, so all eight seeded
+  attestations were unverifiable. Fixed in `prisma/seed/evaluation.ts` by generating the real format
+  from the seeded RNG rather than importing the crypto-backed generator, which would have made every
+  seed run different. Caught by looking at the page, not by a check.

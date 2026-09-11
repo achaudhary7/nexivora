@@ -106,74 +106,74 @@ in each group is actually doing it, without having to ask."*
 
 ### The dashboard — `/faculty`
 Designed so the most useful information is visible without a click.
-- [ ] Current term, subjects taught, classes, group and student counts
-- [ ] **Needs attention** — the primary panel, ranked: submissions awaiting review, proposals
+- [x] Current term, subjects taught, classes, group and student counts
+- [x] **Needs attention** — the primary panel, ranked: submissions awaiting review, proposals
       awaiting approval, at-risk groups, unanswered questions, deadlines this week
-- [ ] Recent activity across all supervised groups
-- [ ] Quick actions: announce, schedule, review the next submission
+- [x] Recent activity across all supervised groups
+- [~] Quick actions: announce, schedule, review the next submission
 
 ### Classes & groups
-- [ ] `/faculty/classes` — every class this term with enrolment, group count, average progress
-- [ ] `/faculty/classes/[id]` — roster, groups with live status, class deadlines, announcements
-- [ ] `/faculty/groups` — every group across every class, filterable by status, progress and health
-- [ ] Group detail (faculty view): members with contribution share, progress, milestones, recent
+- [x] `/faculty/classes` — every class this term with enrolment, group count, average progress
+- [x] `/faculty/classes/[id]` — roster, groups with live status, class deadlines, announcements
+- [x] `/faculty/groups` — every group across every class, filterable by status, progress and health
+- [~] Group detail (faculty view): members with contribution share, progress, milestones, recent
       activity, the full ledger, and read-only access to the workspace
-- [ ] **Faculty workspace access is read-only** except tasks, feedback and meetings (see
+- [x] **Faculty workspace access is read-only** except tasks, feedback and meetings (see
       `docs/ROLES-PERMISSIONS.md`) — a faculty member who can silently edit a group's files destroys
       the evidentiary value of the ledger
 
 ### Group health signals — *the feature that makes the dashboard worth opening*
-- [ ] `lib/ledger/health.ts` computes, per group:
+- [x] `lib/ledger/health.ts` computes, per group:
       - **Silent member** — no ledger event in 14 days
       - **Contribution imbalance** — any member below 10% share
       - **Slipped milestone** — past due and incomplete
       - **Stalled** — no activity of any kind in 10 days
       - **Unresolved blocker** — a `BLOCKER` thread open more than 7 days
-- [ ] Health surfaces as a ranked list, worst first — **not** as a decorative badge
-- [ ] Each signal states the evidence and offers an action (message the group, schedule a meeting,
+- [x] Health surfaces as a ranked list, worst first — **not** as a decorative badge
+- [x] Each signal states the evidence and offers an action (message the group, schedule a meeting,
       flag for review)
-- [ ] Thresholds in `config/health.ts`, tunable per college
-- [ ] **Signals are advisory and are shown to the group too.** A hidden warning about a student that
+- [x] Thresholds in `config/health.ts`, tunable per college
+- [x] **Signals are advisory and are shown to the group too.** A hidden warning about a student that
       the student cannot see is surveillance; a visible one is feedback.
 
 ### Rubrics — `/faculty/rubrics`
-- [ ] Create a rubric: named criteria, weights summing to 100, level descriptors per criterion
-- [ ] Templates for common project types, and duplicate-from-existing
-- [ ] Attach a rubric to a subject or to a specific class
-- [ ] Rubrics are versioned; editing one after an evaluation exists creates a new version so past
+- [x] Create a rubric: named criteria, weights summing to 100, level descriptors per criterion
+- [~] Templates for common project types, and duplicate-from-existing
+- [~] Attach a rubric to a subject or to a specific class
+- [x] Rubrics are versioned; editing one after an evaluation exists creates a new version so past
       evaluations stay meaningful
 
 ### Evaluation — `/faculty/submissions`, `/projects/[id]/review`
-- [ ] Submission queue: filterable, sortable by deadline, showing time waiting
-- [ ] The review screen, side by side: the project record on the left, the rubric on the right
-- [ ] Score each criterion with the descriptor visible; total computed and shown live
-- [ ] **Per-member scores as well as a group score** — with the contribution ledger displayed
+- [x] Submission queue: filterable, sortable by deadline, showing time waiting
+- [x] The review screen, side by side: the project record on the left, the rubric on the right
+- [x] Score each criterion with the descriptor visible; total computed and shown live
+- [x] **Per-member scores as well as a group score** — with the contribution ledger displayed
       alongside, because that is the evidence for differentiating them. This is the entire reason
       the ledger exists.
-- [ ] Per-member adjustment requires a reason when it deviates from the group score
-- [ ] Overall comments plus **inline feedback on any individual section**
-- [ ] Outcomes: approve · request changes (with required specifics) · reject
-- [ ] Feedback is visible to the group immediately on release; drafts are private until then
-- [ ] Evaluation history: multiple rounds retained, not overwritten
+- [x] Per-member adjustment requires a reason when it deviates from the group score
+- [x] Overall comments plus **inline feedback on any individual section**
+- [x] Outcomes: approve · request changes (with required specifics) · reject
+- [x] Feedback is visible to the group immediately on release; drafts are private until then
+- [x] Evaluation history: multiple rounds retained, not overwritten
 
 ### Attestation — *the credential mechanism*
-- [ ] `/faculty/attestations` — issue, view and revoke
-- [ ] Attest a **project outcome** ("this group built and demonstrated a working prototype") or an
+- [x] `/faculty/attestations` — issue, view and revoke
+- [x] Attest a **project outcome** ("this group built and demonstrated a working prototype") or an
       **individual contribution** ("Ananya designed and implemented the classification model")
-- [ ] Pre-filled from the ledger, then edited by the faculty member — never auto-issued
-- [ ] An attestation names the attesting faculty member, their designation and the date, and is
+- [x] Pre-filled from the ledger, then edited by the faculty member — never auto-issued
+- [x] An attestation names the attesting faculty member, their designation and the date, and is
       permanent unless revoked
-- [ ] Revocation preserves the record with a reason, rather than deleting it
-- [ ] Attested items render with the Phase 1 `TierBadge` at the attested tier, everywhere they appear
-- [ ] Attestations flow into the profile skill graph as `ATTESTED` source
+- [x] Revocation preserves the record with a reason, rather than deleting it
+- [x] Attested items render with the Phase 1 `TierBadge` at the attested tier, everywhere they appear
+- [x] Attestations flow into the profile skill graph as `ATTESTED` source
 
 ### Communication
-- [ ] `/faculty/announcements` — post to a class, a subject or specific groups; scheduled or
+- [~] `/faculty/announcements` — post to a class, a subject or specific groups; scheduled or
       immediate; pinned in the target workspaces and delivered as notifications
-- [ ] Deadline broadcast — set a date for a class; it appears in every group's calendar and
+- [x] Deadline broadcast — set a date for a class; it appears in every group's calendar and
       generates reminders
 - [ ] Schedule a meeting with one group or many
-- [ ] Answer questions raised in supervised workspaces, from one queue
+- [x] Answer questions raised in supervised workspaces, from one queue
 
 ## Acceptance criteria
 
@@ -227,20 +227,125 @@ src/config/health.ts                 Thresholds as configuration
 
 ## Phase Summary
 
-*Fill this in when the phase is complete.*
+*Completed 2026-09-11.*
 
 **What was built.**
 
-**Key decisions made.**
+Eight faculty routes, the evaluation screen, the credential mechanism and the public verifier.
+
+- `/faculty` — the dashboard. "Needs attention" is the first thing below the tab strip, ranked, and
+  the end-to-end check asserts that against the rendered geometry rather than the DOM order: 229px
+  into a 485px viewport.
+- `/faculty/submissions` · `/faculty/groups` · `/faculty/classes` · `/faculty/classes/[id]` ·
+  `/faculty/rubrics` · `/faculty/attestations` · `/faculty/announcements`, plus the Phase 8
+  `/faculty/proposals` the dashboard was built around rather than beside.
+- `/projects/[slug]/review` — marks the **submitted snapshot**, not the live record, and says which
+  it is doing in the header.
+- `/projects/[slug]/feedback` — **new, and not in the spec's file list.** Released marks, per-member
+  reasons and section notes, as the group reads them (ADR-049).
+- `/verify` — public, no account. A code on a CV that cannot be checked is decoration (ADR-050).
+- `config/health.ts`, `lib/ledger/health.ts` (rewritten), `lib/evaluation/{rubric,score,attestation}.ts`,
+  `lib/evaluation/{actions,attestation-actions,announcements}.ts`, `lib/db/queries/{faculty,health,feedback}.ts`.
+- `prisma/seed/faculty.ts` — the faculty desk had no data of its own.
+- `scripts/check-faculty.mjs` — 32 assertions in a real browser, covering criteria 1, 2, 3, 4, 5, 7,
+  8 and 9.
+
+**Key decisions made.** ADR-045 through ADR-050. The three that changed the product rather than
+recording it:
+
+- **ADR-045** — the group sees the same signals faculty do. Phase 7's code said the opposite; the
+  spec is right and the reason is that the ledger they are derived from is already group-visible, so
+  hiding the summary buys nothing except a later discovery.
+- **ADR-046** — `HealthInput.active`. Finished work is not stalled work.
+- **ADR-049** — released feedback needed a page. The filter is in the query, not the render.
 
 **Health thresholds chosen, and the reasoning.**
 
+| Threshold | Value | Why |
+| --- | --- | --- |
+| `silentMemberDays` | 14 | Two weeks covers an exam fortnight or a bad flu. Ten days flags people who were simply busy. |
+| `imbalanceShare` | 0.10 | The spec's number, and better than Phase 7's 0.08. In a four-person team an even split is 25%; below 10% is not a variation in style. |
+| `stalledDays` | 10 | Longer than a fortnight's gap between lab sessions would be. |
+| `blockerDays` | 7 | A team that says "we are stuck" deserves an answer inside a week. Checked **before** the thin-data gate — their event count is beside the point. |
+| `minEvents` | 25 | Below this the shares are noise. Gates member-level signals only; blockers and stalls still fire. |
+
+All five live in `config/health.ts` with a per-college override map, empty today. They are one
+college's opinion, not a finding, and the file says so.
+
 **Deviations from the spec above, and why.**
 
+- **`[~] Quick actions: announce, schedule, review the next submission.** Announce, manage rubrics,
+  issue an attestation and review-the-next-one are there. *Schedule* is not, because meeting
+  scheduling for faculty was not built — see below.
+- **`[ ] Schedule a meeting with one group or many.`** Not built. Phase 7's meetings are
+  group-scoped and a faculty-initiated meeting across several groups needs an invitation model that
+  does not exist yet. Deferred rather than half-built: a scheduling control that silently reaches
+  one group would be worse than none. Carried to `PROGRESS.md`.
+- **`[~] Templates … and duplicate-from-existing.`** Three templates ship
+  (engineering-project, research-study, minor-project). Duplicate-from-existing is not built —
+  "New version" on a used rubric covers the common case, and a duplicate button beside it invites
+  the exact confusion versioning exists to prevent.
+- **`[~] Attach a rubric to a subject or to a specific class.`** Subject-scoped or college-wide.
+  Class-scoped is not modelled; `Rubric` has `subjectId` and no `classId`, and adding one for a
+  case nobody has asked for is a schema change looking for a requirement.
+- **`[~] Announcements … pinned in the target workspaces and delivered as notifications.`** They
+  post, schedule, and appear on the class page. They are not pinned into each workspace and do not
+  create notifications. The deadline broadcast **does** land in the group's board as a real task,
+  which is the half that mattered — a date on a board people already look at beats a notification
+  they dismiss.
+- **`[~] Group detail (faculty view).`** No dedicated faculty group page. `/faculty/groups` carries
+  share, progress and signals; the workspace and `/groups/[id]/ledger` carry the rest, and faculty
+  already have read access to both. A second rendering of the same group would be a second place
+  for the two to disagree.
+- **Scheduled announcements are stored, not queued.** There is no job runner and pretending
+  otherwise would mean a scheduled post that silently never fires. A future `publishAt` is simply
+  not yet visible, and the query filters on it.
+- **`/verify` and `/projects/[slug]/feedback` are additions**, not deviations — the spec's own key-files
+  list says `lib/attestation.ts  Issue, verify, revoke`, and verification with no verifier is not
+  verification.
+
 **Anything the next phase must know.**
+
+- **`can(viewer, …)` lets faculty post, upload and create tasks in a supervised group.** That is
+  deliberate (spec line 53): they may *add*, never *edit or delete*. `file:delete` is member-only,
+  and section editing is gated by `capabilities().edit`. The first version of `check-faculty.mjs`
+  asserted "no upload control" and failed against a correct product.
+- **`forbidden()` now works** — `experimental.authInterrupts` is on and `src/app/forbidden.tsx`
+  exists (ADR-048). Every one of the 21 guards that call it was returning a 500 before this phase.
+- **The browser checks must run against `npm run start`, not `npm run dev`.** Under `next dev` the
+  sitemap sweep and the latency budgets measure Turbopack compiling on demand; `check:seo` reported
+  a different random set of 500s on every run and `check:workspace` measured 1294ms against an
+  800ms budget. Both are clean in production.
+- **Seed before you build.** `/projects/[slug]` uses `generateStaticParams` with
+  `dynamicParams = false`, so the public corpus is baked at build time. Reseeding after a build
+  leaves prerendered project pages 404ing and `check:seo` reports it as a sitemap violation.
+- Phase 12 and Phase 15 hand-off notes are at the foot of their own specs.
 
 **Verified by.**
 
 | Check | Result |
 | --- | --- |
-| | |
+| `npm run typecheck` | clean, app and `prisma` project |
+| `npm run lint` | clean |
+| `npm run format:check` | clean |
+| `npm run test` | 491 pass, 0 fail, 85 suites |
+| `npm run check:contrast` | 94 pairs, 0 failed, both themes |
+| `npm run check:chart-palette` | all six checks, both themes |
+| `npm run build` | clean, 174 static pages, all 8 faculty routes present |
+| `npm run db:verify` | 26/26 assertions |
+| `npm run check:faculty` | **32/32** — criteria 1, 2, 3, 4, 5, 7, 8, 9 |
+| `npm run check:privacy` | 11/11 |
+| `npm run check:seo` | 127 URLs, every page satisfies the contract |
+| `npm run check:project` | 17/17 |
+| `npm run check:workspace` | 25/25 |
+| `npm run check:auth` | 12/12 |
+| `npm run check:admin` | 15/15 |
+| Screenshots | `/faculty` light, `/faculty/attestations` dark, and the four other faculty routes — looked at, and two defects found that way (ADR-046, ADR-050) |
+
+Criterion 3 — *a full evaluation in under ten minutes* — measured at **0.3 minutes** of real
+interaction for a five-criterion rubric with one member differentiated and a reason written. That is
+a machine typing, so read it as a ceiling on the interface's overhead rather than as a human's time:
+what it establishes is that nothing in the form is a bottleneck.
+
+Criterion 6 — *an announcement reaches every targeted group's workspace and notification list* — is
+**not** verified, and is the `[~]` above.

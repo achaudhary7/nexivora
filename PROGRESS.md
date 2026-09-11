@@ -1,6 +1,6 @@
 # PROGRESS — Nexivora Live Status Board
 
-**Last updated:** 2026-09-10 · **Current phase:** Phase 9 — Faculty Review & Evaluation
+**Last updated:** 2026-09-11 · **Current phase:** Phase 10 — Academic Feed & Notifications
 
 > This file is the source of truth for *where we are*. Update it at the end of every work session.
 > Detail lives in `docs/phases/`; this is the dashboard.
@@ -20,8 +20,8 @@ Phase  5  ███████████████████████�
 Phase  6  ██████████████████████████  ✅ Complete
 Phase  7  ██████████████████████████  ✅ Complete
 Phase  8  ██████████████████████████  ✅ Complete
-Phase  9  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started   <- next
-Phase 10  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
+Phase  9  ██████████████████████████  ✅ Complete
+Phase 10  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started   <- next
 Phase 11  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
 Phase 12  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
 
@@ -39,7 +39,7 @@ Phase 18  ░░░░░░░░░░░░░░░░░░░░░░░�
 Phase 19  ░░░░░░░░░░░░░░░░░░░░░░░░░░  ⬜ Not Started
 ```
 
-**Completed:** 9 / 20 phases · **MVP progress:** 9 / 13 phases
+**Completed:** 10 / 20 phases · **MVP progress:** 10 / 13 phases
 
 ---
 
@@ -56,8 +56,8 @@ Phase 19  ░░░░░░░░░░░░░░░░░░░░░░░�
 | 6 | Profiles & Academic Identity | ✅ Complete | 2026-09-09 | 2026-09-09 | ✅ | [spec](docs/phases/phase-06-profiles.md) |
 | 7 | Groups & Project Workspace | ✅ Complete | 2026-09-10 | 2026-09-10 | ✅ | [spec](docs/phases/phase-07-workspace.md) |
 | 8 | Project Lifecycle & Pages | ✅ Complete | 2026-09-10 | 2026-09-10 | ✅ | [spec](docs/phases/phase-08-project-lifecycle.md) |
-| 9 | Faculty Review & Evaluation | 🟦 Next | — | — | ⬜ | [spec](docs/phases/phase-09-faculty.md) |
-| 10 | Academic Feed & Notifications | ⬜ Not Started | — | — | ⬜ | [spec](docs/phases/phase-10-feed.md) |
+| 9 | Faculty Review & Evaluation | ✅ Complete | 2026-09-11 | 2026-09-11 | ✅ | [spec](docs/phases/phase-09-faculty.md) |
+| 10 | Academic Feed & Notifications | 🟦 Next | — | — | ⬜ | [spec](docs/phases/phase-10-feed.md) |
 | 11 | Discovery, Ideas & Matching | ⬜ Not Started | — | — | ⬜ | [spec](docs/phases/phase-11-discovery.md) |
 | 12 | Showcase, Archive & Portfolio | ⬜ Not Started | — | — | ⬜ | [spec](docs/phases/phase-12-showcase-archive.md) |
 | 13 | Alumni & Company Network | ⬜ Not Started | — | — | ⬜ | [spec](docs/phases/phase-13-alumni-companies.md) |
@@ -73,6 +73,79 @@ Phase 19  ░░░░░░░░░░░░░░░░░░░░░░░�
 ## Session log
 
 Append one entry per working session. Newest first.
+
+### 2026-09-11 — Session 12
+
+**Phase 9 — Faculty Review & Evaluation. Complete.**
+
+Eight faculty routes, the evaluation screen, the credential mechanism, the public verifier, and the
+student-facing half that turned out to be missing.
+
+**Built.**
+
+- `config/health.ts` — five thresholds as configuration with a per-college override map.
+  `SIGNAL_RANK` makes the panel a work queue rather than an inventory.
+- `lib/ledger/health.ts` rewritten — ranked `HealthSignal[]`, each with a message that concludes
+  nothing about a person, the evidence behind it, and an action. `AUDIENCE_FRAMING` gives faculty
+  and the group different headings over identical data (**ADR-045**).
+- `lib/evaluation/{rubric,score,attestation}.ts` — 48 unit tests. `totalFor()` normalises by weight
+  actually scored, so a partial evaluation is not a fail; `canRelease()` returns **every** problem
+  at once rather than one per round trip.
+- `lib/evaluation/{actions,attestation-actions,announcements}.ts` — versioning on save, the
+  re-release refusal, attestation issue/revoke, announcements and the class deadline broadcast.
+- `lib/db/queries/{faculty,health,feedback}.ts` — one batched read for fifteen groups; a
+  single-group shape for the group's own page; and the released-feedback query whose filter is in
+  the `where` clause, not the render.
+- Routes: `/faculty` · `/submissions` · `/groups` · `/classes` · `/classes/[id]` · `/rubrics` ·
+  `/attestations` · `/announcements`, plus `/projects/[slug]/review`.
+- `prisma/seed/faculty.ts` — the faculty desk had no data of its own: zero submissions, zero
+  announcements, zero open blockers.
+- `scripts/check-faculty.mjs` — 32 assertions in a real browser. `npm run check:faculty`.
+
+**Three defects found by looking at the thing, not by a check.**
+
+1. **`forbidden()` returned 500, everywhere, since Phase 5** (**ADR-048**). Twenty-one guards call
+   it; `experimental.authInterrupts` was never enabled. Invisible on the happy path, because the
+   guard only runs for a user who is denied and that is never the user a check signs in as. Now
+   enabled, with `src/app/forbidden.tsx`.
+2. **`/faculty` flagged four groups out of four** (**ADR-046**), three of them because their project
+   was delivered months ago. Every test passed and the arithmetic was right. `HealthInput.active`
+   now silences the "nothing is happening" signals on finished work; blockers and slipped milestones
+   still fire. Also **ADR-047**: the seed rebases in-flight activity onto the last ten weeks, because
+   a demo world anchored to fixed dates makes any time-sensitive feature look broken.
+3. **Eight seeded attestations were unverifiable** (**ADR-050**). The seed issued `NXV-ATT-0001`,
+   which `isAttestationCode()` rejects. Now generated in the real format from the seeded RNG.
+
+**And one found by the check, from the right seat.** Criterion 9 is *"draft feedback is invisible to
+students until released"*. Asserting it from the student's seat showed that a **released** round was
+also invisible — the evaluation existed in the database and in no interface. `/projects/[slug]/feedback`
+is the other half (**ADR-049**), and `/verify` is the public half of the attestation code
+(**ADR-050**).
+
+**Corrections to my own work.** `check-faculty.mjs` first asserted "faculty cannot upload a file" and
+failed against a correct product: the spec says faculty **can** add feedback, comment and create
+tasks, and cannot *edit sections* or *delete files*. It had also matched the discussion page's own
+empty-state prose rather than any control — the Phase 7 avatar-hint trap again. Both halves of
+criterion 7 are now asserted, including the deliberate permission.
+
+**Verified.** typecheck · lint · format · 491 tests · contrast · chart palette · build (174 static
+pages) · `db:verify` 26/26 · `check:faculty` 32/32 · `check:privacy` 11/11 · `check:seo` 127/127 ·
+`check:project` 17/17 · `check:workspace` 25/25 · `check:auth` 12/12 · `check:admin` 15/15.
+Screenshots of six routes in both themes, looked at.
+
+**Two process facts worth more than the code.**
+
+- **The browser checks must run against `npm run start`.** Under `npm run dev` the sitemap sweep
+  reported a different random set of 500s on every run (Turbopack compiling on demand under parallel
+  load) and the workspace latency budget measured 1294ms against 800ms. All clean in production.
+- **Seed before you build.** `/projects/[slug]` uses `generateStaticParams` with
+  `dynamicParams = false`, so reseeding after a build leaves prerendered project pages 404ing.
+
+**Fixed along the way.** `check-admin.mjs` never cleared cookies between runs and reported the
+resulting failure as the single word "Uncaught" — both fixed, matching `check-workspace.mjs`.
+`scripts/screenshot.mjs` gained `--as <email>`, because from Phase 7 onward a screenshot without a
+session is a screenshot of the login page.
+
 
 ### 2026-09-10 — Session 11
 
@@ -602,4 +675,10 @@ Things consciously postponed. Never delete a row — move it to a Resolved secti
 | Project cover images | Phase 6 → Phase 7 | Phase 8 | `storeImage("cover", …)` works; `User`/`Project` has no cover column. A migration for a field nothing renders cannot be verified, so it lands where the cover is displayed. |
 | Multi-language / `hreflang` | Phase 2 | When Hindi content exists | Emitting hreflang for a single locale is noise. Pattern documented in the SEO checklist. |
 | Plagiarism checking against the open web | Phase 8 | Out of scope | We check against the college archive only. External plagiarism is Turnitin's business and it is expensive. |
+| Faculty-initiated meeting scheduling (one group or many) | Phase 9 | Phase 10 | Phase 7's meetings are group-scoped; a faculty meeting across several groups needs an invitation model that does not exist. A scheduling control that silently reached one group would be worse than none, so it is `[ ]` in the phase file rather than half-built. |
+| Announcements pinned in each workspace, and delivered as notifications | Phase 9 | Phase 10 | Both are notification-delivery decisions, and Phase 10 is where that decision lives once. Announcements post, schedule and render on the class page today; the **deadline broadcast already creates a real task on every group's board**, which is the half that mattered — a date where people already look beats a notification they dismiss. Acceptance criterion 6 is unverified until this lands. |
+| Duplicate-a-rubric-from-existing | Phase 9 | When somebody asks | Three templates ship, and "New version" covers the common case. A duplicate button beside a version button invites exactly the confusion versioning exists to prevent. |
+| Class-scoped rubrics | Phase 9 | When a college asks | `Rubric` has `subjectId`; subject-scoped and college-wide are both supported. Adding `classId` for a case nobody has raised is a schema change looking for a requirement. |
+| A dedicated faculty group-detail page | Phase 9 | Not planned | `/faculty/groups` carries share, progress and signals; the workspace and `/groups/[id]/ledger` carry the rest and faculty can already read both. A second rendering of the same group is a second place for the two to disagree. |
+| Seeded demo data ages against the clock | Phase 9 | Partly resolved | **ADR-047** rebases *in-flight* workspace activity on every seed. Completed projects keep their real dates, correctly — but anything later that compares a finished project to `now` needs the `active` distinction from **ADR-046** or it will read delivered work as failing work. |
 | Google OAuth sign-in | Phase 4 | Phase 16 | Credentials plus institutional email verification is the trust path. OAuth is a convenience added later, never the only route. |

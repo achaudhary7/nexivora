@@ -167,7 +167,7 @@ Phases 0–8 are complete. These are the things a future session most often re-i
 | `npm run db:reset` | Drop → migrate → seed the whole demo world. **~3.4s.** Refuses any non-local host. |
 | `npm run db:seed` / `db:migrate` / `db:deploy` / `db:studio` | The pinned local Prisma CLI — **never `npx prisma`** |
 | `npm run db:verify` | 26 integrity assertions over the seeded database. Structural *and* behavioural. |
-| `npm run test` | Node's built-in runner (ADR-024). **199 tests**, zero test dependencies. |
+| `npm run test` | Node's built-in runner (ADR-024). **491 tests**, zero test dependencies. |
 | `npm run check:auth` | Drives a real browser through sign-in, gating and sign-out. **Needs a running server.** |
 | `npm run check:admin` | The admin console end to end, including a write that round-trips through the audit log. |
 | `npm run check:privacy` | Profile privacy asserted on the bytes a logged-out visitor receives. |
@@ -175,10 +175,11 @@ Phases 0–8 are complete. These are the things a future session most often re-i
 | `npm run check` | typecheck (both tsconfigs) + lint + format + **test** + contrast. **The gate.** Works with nothing running. |
 | `npm run check:project` | Drives a real browser through the whole lifecycle: create, write, autosave, similarity check, propose. **17/17.** Needs a running server. Creates real projects — `db:reset` clears them. |
 | `npm run check:workspace` | Drives a real browser through the workspace: the board **by keyboard with no drag**, the file route, the ledger, the avatar upload. **25/25.** Needs a running server. |
+| `npm run check:faculty` | The faculty desk end to end: the dashboard, a **full evaluation timed against the ten-minute criterion**, draft-invisible-then-released asserted *from the student's seat*, attest → verify → revoke. **32/32.** Needs a running server. |
 | `npm run check:chart-palette` | The six colour-vision checks over the `--color-series-*` tokens, in both themes. In `npm run check`. |
 | `npm run check:seo` | Crawls the sitemap and asserts the whole per-page SEO contract. **Needs a running server.** Found 191 real defects on its first run. |
 | `npm run audit:layout [route]` | Computed font sizes, spacing and overflow at 390/768/1280/1536 |
-| `npm run shot [route]` | Full-page screenshots, light and dark, via CDP |
+| `npm run shot [route] [--as email]` | Full-page screenshots, light and dark, via CDP. **`--as` signs in first** — from Phase 7 onward, a screenshot without a session is a screenshot of the login page. |
 | `npm run gen:icons` | Regenerates the favicon and PWA set from the one mark geometry |
 
 ### Conventions that are already settled — extend, never duplicate
@@ -334,6 +335,29 @@ Phases 0–8 are complete. These are the things a future session most often re-i
 - **The project shell lives at `(app)/projects/[slug]/layout.tsx`**, not under `edit/`, so its tabs
   appear on the pages they link to. The public page is in `(site)` and is unaffected.
 
+- **`can(viewer, …)` lets faculty *add* to a supervised group and never *alter* it.** They post in
+  discussion, upload files, create tasks and schedule meetings; `file:delete` is member-only and
+  section editing is gated by `capabilities().edit`. Phase 9's acceptance criterion 7 is about
+  editing, not adding — a check that asserts "faculty cannot upload" fails against a correct
+  product.
+- **`forbidden()` and `notFound()` are not interchangeable, and the choice is a privacy decision**
+  (ADR-048). `forbidden()` is for a route whose existence is not itself information — `/admin`,
+  `/faculty`, `/platform`. Anything addressed by a guessable id uses `notFound()`, because a 403
+  there confirms the thing exists.
+- **Health thresholds live in `config/health.ts`**, per college, and `groupHealth()` is the only
+  place a signal is decided. The group and the faculty dashboard call the same function and differ
+  only in `AUDIENCE_FRAMING` (ADR-045).
+- **A signal that fires on the *absence* of activity needs `active`** (ADR-046). Silence after
+  delivery is the correct state; without the flag a dashboard flags every finished group and ranks
+  nothing.
+- **Gate private data in the `where` clause, never in the render.** `releasedFeedback()` filters
+  `releasedAt: { not: null }` in the query, so an unreleased evaluation never leaves the database.
+  A page that loads everything and filters in JSX ships the draft in the HTML payload.
+- **An attestation is never automatic** (the phase spec's words, and `validateStatement()` enforces
+  it): the ledger writes a draft ending in a prompt, and a submission still containing that prompt
+  is refused. Codes are `NX-XXXX-XXXX-XXXX` over Crockford's alphabet without I, L, O and U, and
+  `/verify` resolves them with no account — including revoked ones, which say so.
+
 ### Framework facts that fail silently if forgotten
 
 - **Next 16 renamed Middleware to Proxy.** The file is `src/proxy.ts`. A `middleware.ts` is
@@ -389,6 +413,21 @@ Phases 0–8 are complete. These are the things a future session most often re-i
   distribution, a headless Chrome profile's bundled extensions. Both have caused an out-of-memory
   or a wall of `this`-aliasing errors. Ignore new generated directories in `eslint.config.mjs`
   as soon as they appear.
+
+- **`forbidden()` and `unauthorized()` need `experimental.authInterrupts`** in `next.config.ts`.
+  Without it they throw *"forbidden() is experimental"* and the person who hit a permission boundary
+  gets a **500**. It is invisible on the happy path — the guard only runs for a user who is denied.
+- **`generateStaticParams` with `dynamicParams = false` bakes the corpus at build time.** Reseeding
+  after a build leaves prerendered `/projects/[slug]` pages 404ing, and `check:seo` reports it as a
+  sitemap violation. **Seed, then build.**
+- **A textarea's value is not in `document.body.innerText`.** An end-to-end check that reads body
+  text to assert a pre-filled form will report it empty.
+- **Inside a JS template literal, `
+` is a newline before the browser ever sees it.** A regex built
+  that way in a CDP `Runtime.evaluate` string is a syntax error at the far end. Use
+  `String.fromCharCode(10)`.
+- **`Date.now()` during render is an impure call** and the React compiler's `react-hooks/purity`
+  rule is an *error*, not a warning. Pass `now` in as a prop from the server component.
 
 ### Process lessons that cost real time
 
@@ -463,6 +502,30 @@ Phases 0–8 are complete. These are the things a future session most often re-i
 23. **A criterion written casually is still a criterion.** "Progress starts at 0%" went into the
     browser check as an afterthought and caught a real bug: a new project inheriting its sibling
     project's closed tasks. Assert the boring thing.
+
+24. **Run the browser checks against `npm run start`, never `npm run dev`.** Under `next dev` the
+    sitemap sweep reported a *different random set* of 500s on every run — Turbopack compiling on
+    demand under parallel load, surfacing as `SyntaxError: Unexpected end of JSON input` inside
+    Next's own cache — and the workspace latency budget measured 1294ms against 800ms. Every one was
+    clean in production. A flaky check trains you to ignore it, which is worse than not having it.
+25. **Assert from the other seat.** Criterion 9 is "a draft is invisible to students". Signing in
+    *as the student* to check it is what revealed that a **released** evaluation was equally
+    invisible: the feature existed in the database and in no interface. Checking it from the faculty
+    side would have passed.
+26. **When a check disagrees with the product, read the spec before fixing the product.** The
+    faculty check first asserted "no upload control" and failed against behaviour the spec
+    explicitly wants — faculty *may* add, they may not edit. It had also matched the discussion
+    page's own empty-state prose rather than any control, which is the Phase 7 avatar-hint trap in a
+    new costume. **Assert against the control, never against the copy.**
+27. **A check that reports one word tells you nothing.** `check:admin` failed with "Uncaught" for a
+    full debugging round because it used `exceptionDetails.text` instead of the thrown object's
+    description — and the underlying cause was the documented stale-cookie trap that
+    `check-workspace.mjs` already had a fix and a comment for. **When three scripts share a harness,
+    fix the harness in all three.**
+28. **Look at the screenshot, then look at the numbers on it.** `/faculty` rendered perfectly and
+    said *four of four groups need attention*. Nothing was broken; the ranking was meaningless. Two
+    ADRs came out of one image (ADR-046, ADR-047), and a third from the page beside it (ADR-050,
+    eight seeded attestations carrying codes the verifier rejects).
 
 ---
 

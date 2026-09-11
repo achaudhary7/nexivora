@@ -69,6 +69,7 @@ export const RESERVED_USERNAMES: ReadonlySet<string> = new Set([
   "style-guide",
   "terms",
   "topics",
+  "verify",
   "verify-email",
   "workspace",
 

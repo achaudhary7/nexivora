@@ -113,6 +113,15 @@ try {
   const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
   await cdp.send("Page.enable", {}, sessionId);
   await cdp.send("Runtime.enable", {}, sessionId);
+  await cdp.send("Network.enable", {}, sessionId);
+
+  // Start signed out, every time. The Chrome profile is reused between runs, so
+  // without this the second run arrives at /login already authenticated, is
+  // redirected to /dashboard by the guest-only rule, and fails with "cannot set
+  // properties of null" on a form that is not on the page — which reads as "the
+  // login page is broken" rather than "the session persisted". The same line is
+  // in check-workspace.mjs and check-project.mjs for the same reason.
+  await cdp.send("Network.clearBrowserCookies", {}, sessionId);
 
   const evaluate = async (expression) => {
     const { result, exceptionDetails } = await cdp.send(
@@ -120,7 +129,18 @@ try {
       { expression, awaitPromise: true, returnByValue: true },
       sessionId,
     );
-    if (exceptionDetails) throw new Error(exceptionDetails.text ?? "evaluation failed");
+    if (exceptionDetails) {
+      // `exceptionDetails.text` is the useless "Uncaught". The real message is
+      // on the thrown object's description — without it a failure here reports
+      // one word and says nothing about which expression broke, which is how
+      // this check spent a debugging session being unreadable.
+      const detail =
+        exceptionDetails.exception?.description ??
+        exceptionDetails.exception?.value ??
+        exceptionDetails.text ??
+        "evaluation failed";
+      throw new Error(String(detail).split(String.fromCharCode(10))[0]);
+    }
     return result.value;
   };
 

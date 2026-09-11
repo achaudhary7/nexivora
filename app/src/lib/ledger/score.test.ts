@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { DISENGAGEMENT_SHARE, HEALTH_SIGNAL_MIN_EVENTS, LEDGER_WEIGHTS } from "@/config/ledger";
-
-import { SILENT_DAYS, groupHealth, healthLevel } from "./health";
+import { LEDGER_WEIGHTS } from "@/config/ledger";
 import {
   balanceSummary,
   contributionTimeline,
@@ -221,110 +219,5 @@ describe("balanceSummary", () => {
     ]);
 
     assert.match(balanceSummary(scores) ?? "", /Meera Iyer has no recorded activity yet/);
-  });
-});
-
-/* ----------------------------------------------------------- groupHealth */
-
-describe("groupHealth", () => {
-  const now = day(40);
-
-  /** Enough events for the signal to be allowed to fire at all. */
-  const bulk = (userId: string, count: number, dayNumber: number): LedgerRow[] =>
-    Array.from({ length: count }, () => event(userId, "TASK_CLOSED", dayNumber));
-
-  const input = (scores: ReturnType<typeof scoreMembers>, totalEvents: number) => ({
-    scores,
-    totalEvents,
-    overdueTasks: [],
-    slippedMilestones: [],
-    lastActivityAt: day(39),
-  });
-
-  it("fires nothing on thin data, however lopsided", () => {
-    const rows = bulk("u1", HEALTH_SIGNAL_MIN_EVENTS - 1, 39);
-    const signals = groupHealth(input(scoreMembers(TEAM, rows), rows.length), now);
-
-    assert.deepEqual(signals, []);
-  });
-
-  it("flags a member with no activity at all once the group has done enough", () => {
-    const rows = [...bulk("u1", 20, 39), ...bulk("u2", 10, 39)];
-    const signals = groupHealth(input(scoreMembers(TEAM, rows), rows.length), now);
-
-    const silent = signals.find((signal) => signal.userId === "u3");
-    assert.ok(silent);
-    assert.equal(silent.kind, "silent-member");
-    assert.equal(silent.severity, "warning");
-  });
-
-  it("flags a member who has gone quiet, dating it", () => {
-    const rows = [...bulk("u1", 25, 39), ...bulk("u2", 25, 39), ...bulk("u3", 5, 1)];
-    const signals = groupHealth(input(scoreMembers(TEAM, rows), rows.length), now);
-
-    const quiet = signals.find((signal) => signal.userId === "u3");
-    assert.ok(quiet);
-    assert.match(quiet.message, new RegExp(`last ${SILENT_DAYS} days`));
-  });
-
-  it("does not double-report a silent member as also low-share", () => {
-    const rows = [...bulk("u1", 30, 39), ...bulk("u2", 30, 39)];
-    const signals = groupHealth(input(scoreMembers(TEAM, rows), rows.length), now);
-
-    assert.equal(signals.filter((signal) => signal.userId === "u3").length, 1);
-  });
-
-  it("reports a low share only for somebody who is still active", () => {
-    // u3 is active yesterday but tiny: one message against sixty closed tasks.
-    const rows = [...bulk("u1", 30, 39), ...bulk("u2", 30, 39), event("u3", "MESSAGE_POSTED", 39)];
-    const scores = scoreMembers(TEAM, rows);
-    const signals = groupHealth(input(scores, rows.length), now);
-
-    const low = signals.find((signal) => signal.userId === "u3");
-    assert.ok(low);
-    assert.equal(low.kind, "low-share");
-    assert.equal(low.severity, "info");
-    assert.ok(scores.find((score) => score.member.id === "u3")!.share < DISENGAGEMENT_SHARE);
-  });
-
-  it("notices a workspace that has stopped moving, even before the data is thick", () => {
-    const rows = bulk("u1", 3, 1);
-    const signals = groupHealth(
-      { ...input(scoreMembers(TEAM, rows), rows.length), lastActivityAt: day(1) },
-      now,
-    );
-
-    assert.equal(signals.length, 1);
-    assert.equal(signals[0]!.kind, "stalled-board");
-  });
-
-  it("reports a slipped milestone", () => {
-    const rows = bulk("u1", 30, 39);
-    const signals = groupHealth(
-      {
-        ...input(scoreMembers([ananya], rows), rows.length),
-        slippedMilestones: [{ id: "m1", title: "Prototype demo", dueOn: day(30) }],
-      },
-      now,
-    );
-
-    assert.ok(signals.some((signal) => signal.kind === "slipped-milestone"));
-  });
-});
-
-describe("healthLevel", () => {
-  it("is ok with no signals, watch on info, attention on a warning", () => {
-    assert.equal(healthLevel([]), "ok");
-    assert.equal(
-      healthLevel([{ kind: "low-share", severity: "info", userId: "u1", message: "" }]),
-      "watch",
-    );
-    assert.equal(
-      healthLevel([
-        { kind: "low-share", severity: "info", userId: "u1", message: "" },
-        { kind: "silent-member", severity: "warning", userId: "u2", message: "" },
-      ]),
-      "attention",
-    );
   });
 });

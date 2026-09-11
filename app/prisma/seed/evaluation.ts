@@ -55,6 +55,23 @@ const PEER_COMMENTS = [
   "Kept the documentation current throughout, which saved us during the write-up.",
 ];
 
+/**
+ * A verification code in the real format, from the seeded RNG.
+ *
+ * Mirrors `attestationCode()` in `src/lib/evaluation/attestation.ts` — the same
+ * Crockford alphabet without I, L, O and U — but draws from the seed's own
+ * stream so the demo world stays reproducible. Importing the real generator
+ * would pull `node:crypto` randomness in and make every seed run different.
+ */
+const CODE_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+
+function demoCode(rng: Rng): string {
+  const body = Array.from({ length: 12 }, () =>
+    CODE_ALPHABET.charAt(rng.int(0, CODE_ALPHABET.length - 1)),
+  ).join("");
+  return `NX-${body.slice(0, 4)}-${body.slice(4, 8)}-${body.slice(8, 12)}`;
+}
+
 export async function seedEvaluation(
   db: PrismaClient,
   rng: Rng,
@@ -183,13 +200,19 @@ export async function seedEvaluation(
       subjectType: "ProjectMember",
       subjectId: seedId("pmember", project.slug, member.username),
       statement: `I supervised this work and confirm that ${member.username} was responsible for ${member.role.toLowerCase()} on ${project.title}.`,
-      code: `NXV-ATT-${String(index + 1).padStart(4, "0")}`,
+      // The real format, produced deterministically. `NXV-ATT-0001` was
+      // readable but `isAttestationCode()` rejects it, so every seeded
+      // attestation was unverifiable at /verify — the one thing an attestation
+      // code is for. Caught by looking at the page, not by a check.
+      code: demoCode(rng),
       issuedAt,
       // One revoked, so the revocation path is visible in the demo rather than
       // theoretical. Revoking preserves the record; it does not delete it.
       revokedAt: index === 0 ? daysAfter(issuedAt, 45) : null,
       revokedReason:
-        index === 0 ? "Issued against the wrong project member. Reissued as NXV-ATT-0002." : null,
+        index === 0
+          ? "Issued against the wrong project member. Reissued the following week."
+          : null,
     };
   });
 

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/display";
 import { Alert } from "@/components/ui/feedback";
 import { ProjectEditTabs } from "@/components/project/project-edit-tabs";
 import { requireAuth } from "@/lib/auth/guards";
+import { hasReleasedFeedback } from "@/lib/db/queries/feedback";
 import { capabilities, requireEditableProject } from "@/lib/db/queries/project-edit";
 import { LABEL, isEditable } from "@/lib/project/lifecycle";
 
@@ -40,6 +41,7 @@ export default async function ProjectEditLayout({
 
   const caps = capabilities(viewer, project);
   const locked = !isEditable(project.status);
+  const feedback = await hasReleasedFeedback(project.id);
 
   return (
     <div className="grid gap-6">
@@ -85,7 +87,12 @@ export default async function ProjectEditLayout({
           </Alert>
         ) : null}
 
-        <ProjectEditTabs slug={project.slug} canSubmit={caps.lead} isFaculty={caps.faculty} />
+        <ProjectEditTabs
+          slug={project.slug}
+          canSubmit={caps.lead}
+          isFaculty={caps.faculty}
+          hasFeedback={feedback}
+        />
       </header>
 
       {children}

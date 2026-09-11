@@ -10,6 +10,7 @@
     "check:admin": "node scripts/check-admin.mjs",
     "check:auth": "node scripts/check-auth.mjs",
     "check:chart-palette": "node scripts/check-chart-palette.mjs",
+    "check:faculty": "node scripts/check-faculty.mjs",
     "check:contrast": "node scripts/check-contrast.mjs",
     "check:privacy": "node --import ./scripts/test-register.mjs scripts/check-privacy.mjs",
     "check:project": "node scripts/check-project.mjs",

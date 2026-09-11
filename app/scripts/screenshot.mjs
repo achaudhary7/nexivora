@@ -10,8 +10,15 @@
  *   node scripts/screenshot.mjs /style-guide            both themes, full page
  *   node scripts/screenshot.mjs /style-guide --dark     dark only
  *   node scripts/screenshot.mjs / --width 420           mobile width
+ *   node scripts/screenshot.mjs /faculty --as meera-rao@nit.edu.in
  *
- * Env: BASE_URL (default http://localhost:3000), OUT_DIR (default ./.screenshots)
+ * `--as` signs in first, because from Phase 7 onward most of the product is
+ * behind a session and a screenshot of the login page is not a look at the
+ * thing. Without it, an authenticated route silently captures a redirect —
+ * which looks like a working screenshot and tells you nothing.
+ *
+ * Env: BASE_URL (default http://localhost:3000), OUT_DIR (default ./.screenshots),
+ * DEMO_PASSWORD (default nexivora-demo)
  *
  * This is a development tool, not part of the build. Phase 16 adds the
  * automated axe and Lighthouse passes; this is for looking at things.
@@ -33,6 +40,9 @@ const args = process.argv.slice(2);
 const route = args.find((a) => a.startsWith("/")) ?? "/";
 const widthArg = args.indexOf("--width");
 const width = widthArg > -1 ? Number(args[widthArg + 1]) : 1280;
+const asArg = args.indexOf("--as");
+const signInAs = asArg > -1 ? args[asArg + 1] : null;
+const password = process.env.DEMO_PASSWORD ?? "nexivora-demo";
 const themes = args.includes("--dark")
   ? ["dark"]
   : args.includes("--light")
@@ -124,6 +134,42 @@ try {
   const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
 
   await cdp.send("Page.enable", {}, sessionId);
+  await cdp.send("Runtime.enable", {}, sessionId);
+  await cdp.send("Network.enable", {}, sessionId);
+
+  if (signInAs) {
+    // Cleared first: the Chrome profile is reused between runs, so a stale
+    // session would quietly screenshot the wrong person's view.
+    await cdp.send("Network.clearBrowserCookies", {}, sessionId);
+    await cdp.send("Page.navigate", { url: `${baseUrl}/login?next=%2Fdashboard` }, sessionId);
+    await sleep(2500);
+
+    await cdp.send(
+      "Runtime.evaluate",
+      {
+        expression: `
+          (() => {
+            const email = document.querySelector('input[name=email]');
+            const pass = document.querySelector('input[name=password]');
+            if (!email || !pass) return false;
+            email.value = ${JSON.stringify(signInAs)};
+            pass.value = ${JSON.stringify(password)};
+            email.dispatchEvent(new Event('input', { bubbles: true }));
+            pass.dispatchEvent(new Event('input', { bubbles: true }));
+            document.querySelector('form').requestSubmit();
+            return true;
+          })()
+        `,
+        awaitPromise: true,
+        returnByValue: true,
+      },
+      sessionId,
+    );
+
+    await sleep(3500);
+    console.log(`  signed in as ${signInAs}`);
+  }
+
   await cdp.send(
     "Emulation.setDeviceMetricsOverride",
     {

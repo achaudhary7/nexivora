@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 
 import { seedActivity } from "./activity.ts";
 import { seedEvaluation } from "./evaluation.ts";
+import { seedFacultyDesk } from "./faculty.ts";
 import { seedEnrolment, seedGroups } from "./groups.ts";
 import { seedHierarchy } from "./hierarchy.ts";
 import { seedIdeas } from "./ideas.ts";
@@ -48,6 +49,7 @@ async function main() {
   const projectIndex = await seedProjects(db, rng, cast);
   await seedWorkspace(db, rng, groups, projectIndex);
   await seedEvaluation(db, rng, cast, groups, projectIndex);
+  await seedFacultyDesk(db, cast);
   await seedIdeas(db, rng, cast);
   await seedNetwork(db, rng, cast);
   await seedActivity(db, rng, cast, groups, projectIndex);

@@ -34,10 +34,14 @@ Nexivora is **project-first**, not person-first. Four things nobody else builds:
 
 ## Status
 
-**Phase 8 of 20 complete.** The public site (127 indexable pages), the schema and demo world, auth
+**Phase 9 of 20 complete.** The public site (127 indexable pages), the schema and demo world, auth
 and RBAC, the institution backbone, profiles, the group workspace with the **Contribution Ledger**,
-and the **project record** — nine sections, a role-gated lifecycle, computed progress, the archive
-similarity check and immutable submission snapshots. Next: Phase 9, faculty review and evaluation.
+the **project record** — nine sections, a role-gated lifecycle, computed progress, the archive
+similarity check and immutable submission snapshots — and the **faculty desk**: a dashboard that
+ranks what needs attention today, group health signals the group can see too, versioned rubrics,
+per-member evaluation with the ledger beside the score, and **attestation** — a named human vouching
+for work, verifiable by anyone at [`/verify`](https://nexivora.com/verify) without an account.
+Next: Phase 10, the academic feed and notifications.
 
 Live status board: [`PROGRESS.md`](PROGRESS.md).
 

@@ -101,6 +101,36 @@ const FILE_NAMES = [
   { name: "results-analysis.ipynb", mime: "application/x-ipynb+json" },
 ];
 
+/**
+ * When a group's workspace activity happened.
+ *
+ * A **finished** project keeps its real dates: its record is history and should
+ * read as history. An **in-flight** one is rebased onto the last ten weeks,
+ * because a running project whose last recorded event is nine months old is not
+ * a running project — it is a bug in the demo world.
+ *
+ * Phase 9 is where this started to matter. Health signals are the first feature
+ * that compares seeded data against `now`, and with fixed 2025 dates every
+ * group in the demo tripped the stalled threshold: four of four flagged, which
+ * ranks nothing and makes the dashboard worth exactly as much as no dashboard.
+ * The signal logic was right; the data aged out from under it.
+ *
+ * The RNG stream is untouched, so the run stays deterministic in everything
+ * except the timestamps — which is the one thing that has to move.
+ */
+function activityAnchor(status: string, startedOn: Date): Date {
+  if (status !== "proposed" && status !== "progress") return startedOn;
+
+  const weeks = status === "proposed" ? 4 : 10;
+  const anchor = new Date();
+  anchor.setUTCHours(9, 0, 0, 0);
+  anchor.setUTCDate(anchor.getUTCDate() - weeks * 7);
+
+  // Never move a project forward in time — a fixture that legitimately starts
+  // next term should stay where it is.
+  return anchor > startedOn ? anchor : startedOn;
+}
+
 export async function seedWorkspace(
   db: PrismaClient,
   rng: Rng,
@@ -144,7 +174,7 @@ export async function seedWorkspace(
     const members = groups.membersByGroup.get(group) ?? [];
     if (members.length === 0) continue;
 
-    const startedOn = iso(project.startedOn);
+    const startedOn = activityAnchor(project.status, iso(project.startedOn));
     const isStruggling = project.slug === STRUGGLING_GROUP_SLUG;
 
     // A proposed project has a workspace but almost nothing in it yet — which

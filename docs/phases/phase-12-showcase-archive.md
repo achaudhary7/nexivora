@@ -54,6 +54,33 @@ waste a phase is to rebuild something the previous one shipped.*
   rather than showing a broken link.
 - **`ProjectSubmission` snapshots are the permanent record** of what was submitted each round.
 
+## What Phase 9 already provides
+
+*Added 2026-09-11, when Phase 9 completed.*
+
+- **Attestations are real, and already render publicly.** `TierBadge` with `attestedBy` is on
+  `/projects/[slug]` and `/p/[username]` from Phase 6; Phase 9 is what finally writes
+  `FACULTY_ATTESTED`. The showcase does not need to invent an attestation display — it needs to make
+  sure the one that exists survives the archive.
+- **`/verify` is live and public** (ADR-050). Every attestation carries `NX-XXXX-XXXX-XXXX`, no
+  account is needed to check one, and a revoked attestation still resolves and says it was revoked.
+  A showcase page that prints an attestation should print its code beside it: the code is the part
+  that is worth something off-platform, and it is the only part a reader can check.
+- **`verifyAttestation(code)` in `lib/evaluation/attestation-actions.ts`** returns exactly what a
+  verifier needs — statement, attester, designation, college, dates, revocation. Reuse it; do not
+  query `Attestation` directly, or the two will disagree about what "still valid" means.
+- **`ProjectSubmission.snapshot` is the archived record.** Byte-stable (`stableStringify`, sorted
+  keys at every depth), one row per round, and it is what the review screen marks. If the archive
+  needs "the project as it was assessed", that is this row, not the live one.
+- **`/projects/[slug]/feedback` exists** and is gated in the query, not the page (ADR-049). If the
+  public showcase ever surfaces an evaluation, copy that shape: `releasedAt: { not: null }` in the
+  `where`, never a filter in the render.
+- **Attested skills reach the profile as `source: "ATTESTED"`**, and `recomputeSkills` never
+  overwrites one. Only the faculty member who signed it can withdraw it.
+- Careful with `Attestation.subjectId`: it holds a project id but is **not** a foreign key, so an
+  attestation outlives the record it describes — deliberately. `listAttestations()` resolves titles
+  separately and falls back to naming the absence rather than rendering "a project".
+
 ## Objective
 
 Make student work **permanent, citable, verifiable and public** — the differentiator that turns a

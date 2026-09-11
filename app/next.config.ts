@@ -30,6 +30,14 @@ const nextConfig: NextConfig = {
 
   poweredByHeader: false,
 
+  // `forbidden()` and `unauthorized()` are still behind this flag in Next 16.
+  // Twenty-one guards across admin and faculty call `forbidden()`; without the
+  // flag every one of them throws "forbidden() is experimental" and the person
+  // who hit a permission boundary gets a 500 instead of a 403. The failure is
+  // invisible in a happy-path test — the guard only runs for a user who is
+  // actually denied, which is never the user a check signs in as.
+  experimental: { authInterrupts: true },
+
   // Static asset caching is deliberately NOT set here. Next already sends
   // immutable Cache-Control for its own hashed /_next/static output, and
   // overriding it warns at build time and can break dev behaviour. Production

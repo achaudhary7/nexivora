@@ -17,10 +17,13 @@ export function ProjectEditTabs({
   slug,
   canSubmit,
   isFaculty,
+  hasFeedback,
 }: {
   slug: string;
   canSubmit: boolean;
   isFaculty: boolean;
+  /** A released round exists. The tab is hidden until there is something in it. */
+  hasFeedback: boolean;
 }) {
   const pathname = usePathname();
   const base = `/projects/${slug}`;
@@ -30,6 +33,9 @@ export function ProjectEditTabs({
     { href: `${base}/edit/details`, label: "Details" },
     { href: `${base}/milestones`, label: "Milestones" },
     { href: `${base}/propose`, label: "Proposal" },
+    // Hidden until a round is released, because a permanently empty "Feedback"
+    // tab teaches people that there is never anything in it.
+    ...(hasFeedback ? [{ href: `${base}/feedback`, label: "Feedback" }] : []),
     ...(canSubmit || isFaculty ? [{ href: `${base}/submit`, label: "Submit" }] : []),
     { href: base, label: "View page" },
   ];

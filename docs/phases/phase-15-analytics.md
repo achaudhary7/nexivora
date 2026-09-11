@@ -34,6 +34,38 @@
 - **The submission receipt has a digest but is not a downloadable file.** `lib/pdf/` is this
   phase's; the receipt is the obvious first thing to render through it.
 
+## What Phase 9 already provides
+
+*Added 2026-09-11, when Phase 9 completed.*
+
+- **`groupHealth()` in `lib/ledger/health.ts` is the one place a signal is decided**, and it is
+  pure. Analytics should aggregate its output rather than re-deriving "at risk" from the ledger — a
+  second definition is a second number for the same question, and the dashboard and the report will
+  eventually disagree in front of a head of department.
+- **`HealthInput.active` matters more than it looks** (ADR-046). A signal that fires on the
+  *absence* of activity needs to know whether activity was still expected; `COMPLETED` and
+  `ARCHIVED` groups are not stalled. Any time-window metric Phase 15 adds — "active this week",
+  streaks, response times — needs the same distinction or it will report a delivered cohort as a
+  failing one.
+- **Thresholds are configuration, per college** (`config/health.ts`, with an override map that is
+  empty today). Any chart with a threshold line must read it from there, not hard-code 14 days.
+- **`config/ledger.ts` holds the weights and `LedgerEvent.weight` is denormalised at write time**,
+  so retuning the weights never retroactively changes what past work was worth. A trend chart over
+  the ledger is therefore honest by construction — and must not re-weight historic rows to "fix" a
+  discontinuity, because the discontinuity is the truth.
+- **`lib/db/queries/faculty.ts` shows the batching shape.** `listSupervisedGroups` loads the ledger
+  once for every supervised group and then runs pure functions over it. Fifteen groups cost one
+  round trip. Analytics over a whole college should follow the same shape rather than one query per
+  group.
+- **`facultyDashboard()` already computes most of the per-class aggregates** — counts, at-risk
+  ranking, queue depth, unanswered questions. Phase 15's class report should extend it, not fork it.
+- **Average progress is computed, never stored** (`computeProgress`, ADR-041: a project's tasks
+  count only via its own milestones). Any stored aggregate Phase 15 introduces needs a stated
+  refresh policy, because everything upstream of it is derived on read.
+- **The demo world's in-flight activity is rebased on every seed** (ADR-047, `activityAnchor()` in
+  `prisma/seed/workspace.ts`). Time-series charts will look plausible in the demo because of that
+  and not by accident — use the same anchor rather than inventing a second one.
+
 ## Objective
 
 Turn the data the platform has been accumulating into the thing an institution will actually pay
