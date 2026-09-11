@@ -29,8 +29,14 @@ Free alternatives that *do* run Node, if a VPS is not possible:
 | **Koyeb** | One free service | Simple, generous enough for a demo. |
 | **Neon** | Free Postgres, 0.5 GB | The database half of any of the above. Serverless, scales to zero. |
 
+**Render + Neon is set up as a one-click blueprint** — `render.yaml` at the repo root, walkthrough
+and honest free-tier caveats (ephemeral file storage, console-only email until SMTP is added) in
+`deploy/nexivora-space/README.md`.
+
 Last resort — static-exporting the public site onto shared hosting while the app runs elsewhere.
-This splits the product, breaks shared navigation and session, and is not recommended.
+This splits the product, breaks shared navigation and session, and is not recommended. `nexivora.space`
+currently carries a small on-brand holding page for exactly this reason (not the application) —
+see `deploy/nexivora-space/`.
 
 ---
 

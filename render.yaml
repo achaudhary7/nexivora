@@ -1,0 +1,60 @@
+# Render Blueprint — the fastest path to a real, running Nexivora with no VPS.
+#
+# Why this exists: docs/DEPLOYMENT.md already recommends Render (free, runs
+# Node) + Neon (free Postgres) as the quickest way to get the actual dynamic
+# app live, as opposed to a Hostinger VPS. This file makes that a "New >
+# Blueprint" click in the Render dashboard instead of manually configuring a
+# web service by hand.
+#
+# What you still have to do yourself (Render can't do these from a file):
+#   1. Create a free Neon project (neon.tech) and copy its pooled connection
+#      string.
+#   2. In Render: New > Blueprint > pick this repo. Render reads this file.
+#   3. Fill in the env vars marked `sync: false` below when prompted —
+#      DATABASE_URL (from Neon), NEXT_PUBLIC_SITE_URL and AUTH_URL (the
+#      *.onrender.com URL Render gives you after first deploy — update these
+#      once you see it, then again once nexivora.space DNS points here).
+#   4. Point nexivora.space at the resulting service in Hostinger's hPanel
+#      (a CNAME to the onrender.com host, or Render's custom-domain flow for
+#      an apex domain) — that needs the hPanel login, not FTP.
+#
+# See deploy/nexivora-space/README.md for the full walkthrough.
+
+services:
+  - type: web
+    name: nexivora
+    runtime: node
+    plan: free
+    rootDir: app
+    region: singapore
+    buildCommand: npm ci && npx prisma generate && npx prisma migrate deploy && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+      - key: AUTH_URL
+        sync: false
+      - key: AUTH_SECRET
+        generateValue: true
+      # Verification-link emails print to the Render logs rather than sending
+      # until real SMTP credentials are added — see the note in
+      # deploy/nexivora-space/README.md before inviting real users.
+      - key: EMAIL_TRANSPORT
+        value: console
+      - key: EMAIL_FROM
+        value: no-reply@nexivora.com
+      - key: STORAGE_DRIVER
+        value: local
+      - key: UPLOAD_DIR
+        value: ./.uploads
+      - key: MAX_UPLOAD_BYTES
+        value: "26214400"
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      - key: AI_ENABLED
+        value: "false"
