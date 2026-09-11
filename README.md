@@ -3,6 +3,10 @@
 **The Global Academic Collaboration Network.**
 *Projects. People. Opportunities.*
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/achaudhary7/nexivora)
+&nbsp;·&nbsp; free, no card — [`render.yaml`](render.yaml), walkthrough and caveats in
+[`deploy/nexivora-space/README.md`](deploy/nexivora-space/README.md)
+
 Nexivora is the system of record for academic project work — and the network that grows on top of
 it. It connects students, faculty, colleges, alumni, companies and researchers around the thing
 that actually matters in academic life: **the projects people build.**

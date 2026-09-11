@@ -50,11 +50,11 @@ click rather than hand-configuring a service:
 
 1. Create a free account at **neon.tech** → New project → copy the **pooled**
    connection string. Keep the tab open, you need it in step 3.
-2. Create a free account at **render.com** (sign in with GitHub is fastest —
-   it also grants the repo access Render needs).
-3. Render dashboard → **New → Blueprint** → pick `achaudhary7/nexivora`.
-   Render reads `render.yaml` and asks you to fill in three values it can't
-   know on its own:
+2. Click **[Deploy to Render](https://render.com/deploy?repo=https://github.com/achaudhary7/nexivora)**.
+   Signing in with GitHub is the fastest path (one OAuth click, also grants
+   Render the repo access it needs) — no separate signup form.
+3. Render reads `render.yaml` from the repo automatically and asks you to
+   fill in three values it can't know on its own:
    - `DATABASE_URL` — the Neon string from step 1.
    - `NEXT_PUBLIC_SITE_URL` and `AUTH_URL` — leave a placeholder for the
      first deploy (e.g. `https://nexivora.onrender.com`), then come back and
