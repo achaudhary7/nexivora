@@ -26,7 +26,15 @@ services:
     runtime: node
     plan: free
     rootDir: app
-    region: singapore
+    # Co-located with the database, not with the audience. Render and Neon
+    # both default new projects to US East (Ohio) — matching them avoids
+    # every single query crossing continents, which for a dashboard-heavy
+    # app matters far more than shaving one fixed round trip for a viewer
+    # in India. If your Neon project ends up somewhere else, change this
+    # to match rather than the other way around: Render's region is locked
+    # at creation, Neon's isn't (delete-and-recreate is cheap on a fresh
+    # free project; migrating an already-deployed Render service is not).
+    region: ohio
     buildCommand: npm ci && npx prisma generate && npx prisma migrate deploy && npm run build
     startCommand: npm run start
     healthCheckPath: /
