@@ -35,7 +35,16 @@ services:
     # at creation, Neon's isn't (delete-and-recreate is cheap on a fresh
     # free project; migrating an already-deployed Render service is not).
     region: ohio
-    buildCommand: npm ci && npx prisma generate && npx prisma migrate deploy && npm run build
+    # `--include=dev` overrides npm's default of skipping devDependencies
+    # whenever NODE_ENV=production is set (below). That default is right for
+    # the RUNTIME (no need for eslint, @types/*, etc. in the running server)
+    # but wrong for this BUILD step: `next build` still needs `typescript`
+    # (next.config.ts sets ignoreBuildErrors: false — it genuinely type-checks
+    # at build time) and `tailwindcss` / `@tailwindcss/postcss` to process
+    # globals.css. Both are correctly devDependencies in package.json — the
+    # fix belongs here, in how the build is invoked, not in reclassifying
+    # build tooling as runtime dependencies it isn't.
+    buildCommand: npm ci --include=dev && npx prisma generate && npx prisma migrate deploy && npm run build
     startCommand: npm run start
     healthCheckPath: /
     envVars:
